@@ -65,8 +65,10 @@ except:
 sys.path.append(os.path.join(os.path.dirname(__file__), "vendor"))
 
 import pysubs2
-
-from mpv import *
+import intersubs
+import intersubs.handler
+from intersubs.mpv_intersubs import MPVInterSubs
+from intersubs.main import run as intersubs_run
 
 if isMac and "/usr/local/bin" not in os.environ['PATH']:
     # https://docs.brew.sh/FAQ#my-mac-apps-dont-find-usrlocalbin-utilities
@@ -122,6 +124,11 @@ def fix_glob_square_brackets(glob_pattern):
     glob_pattern = re.sub(r'(?<!\[)\]', '[]]', glob_pattern)
 
     return glob_pattern
+
+class InterSubsHandler(intersubs.handler.InterSubsHandler):
+    def on_sub_clicked(self, text: str, idx: int) -> None:
+        word = self.lookup_word_from_index(text, idx)
+        self.mpv.command("script-message", "create-anki-word-card", word)
 
 class SubtitlesHelper():
     def __init__(self, configManager):
@@ -421,6 +428,7 @@ class ConfigManager():
         return [
             "<ignored>",
             "Id",
+            "Word",
             "Source",
             "Path",
             "Time",
@@ -457,10 +465,10 @@ class ConfigManager():
 
 # Fix for ... cannot be converted to PyQt5.QtCore.QObject in this context
 class MessageHandler(QObject):
-    create_anki_card = pyqtSignal(float, float, float, str)
+    create_anki_card = pyqtSignal(str, float, float, float, str)
     update_file_path = pyqtSignal(str)
 
-class MPVMonitor(MPV):
+class MPVMonitor(MPVInterSubs):
 
     def __init__(self, executable, popenEnv, fileUrls, mpvConf, msgHandler, subsManager):
         self.executable = executable
@@ -469,7 +477,8 @@ class MPVMonitor(MPV):
         self.mpvConf = mpvConf
         self.msgHandler = msgHandler
 
-        super().__init__(window_id=None, debug=False)
+        super().__init__()
+        # super().__init__(window_id=None, debug=False)
 
         self.audio_id = "auto"
         self.audio_ffmpeg_id = 0
@@ -479,14 +488,13 @@ class MPVMonitor(MPV):
 
         self.command("load-script", os.path.join(os.path.dirname(os.path.abspath(__file__)), "mpv2anki.lua"))
 
-        for filePath in fileUrls:
-            self.command("loadfile", filePath, "append-play")
+        intersubs_run(fileUrls, app=mw.app, mpv=self, handler=InterSubsHandler(self))
 
     def on_property_term_status_msg(self, statusMsg=None):
-        m = re.match(r"^\[mpv2anki\] ([^#]+) # ([^#]+) # ([^#]+) # (.*)$", statusMsg, re.DOTALL)
+        m = re.match(r"^\[mpv2anki\] ([^#]+) # ([^#]+) # ([^#]+) # (.*?) # (.*)$", statusMsg, re.DOTALL)
         if m:
-            timePos, timeStart, timeEnd, subText = m.groups()
-            self.msgHandler.create_anki_card.emit(float(timePos), float(timeStart), float(timeEnd), subText)
+            timePos, timeStart, timeEnd, word, subText = m.groups()
+            self.msgHandler.create_anki_card.emit(word, float(timePos), float(timeStart), float(timeEnd), subText)
 
     def on_property_aid(self, audio_id=None):
         self.audio_id = audio_id
@@ -511,7 +519,7 @@ class MPVMonitor(MPV):
     def on_property_sub_delay(self, val):
         self.subsManager.sub_delay = round(float(val), 3)
 
-    def on_start_file(self):
+    def on_start_file(self, msg):
         self.filePath = self.get_property("path")
         self.subsManager.init(self.filePath)
         if self.subsManager.subsPath:
@@ -522,7 +530,7 @@ class MPVMonitor(MPV):
         if not self.get_property("vo-configured"):
             self.set_property("force-window", "yes")
 
-    def on_shutdown(self):
+    def on_shutdown(self, msg=None):
         try:
             self.close()
         except Exception:
@@ -568,8 +576,8 @@ class AnkiHelper(QObject):
         else:
             self.is_local_file = False
 
-    def createAnkiCard(self, timePos, timeStart, timeEnd, subText):
-        self.addNewCard(timePos, timeStart, timeEnd, subText)
+    def createAnkiCard(self, word, timePos, timeStart, timeEnd, subText):
+        self.addNewCard(word, timePos, timeStart, timeEnd, subText)
 
     def format_filename(self, filename):
         if not self.is_local_file or re.search(r'[\\/:"*?<>|]+', filename):
@@ -676,12 +684,14 @@ class AnkiHelper(QObject):
 
         subprocess.Popen(argv, startupinfo=si, env=self.popenEnv)
 
-    def addNewCard(self, timePos, timeStart, timeEnd, subText):
+    def addNewCard(self, word, timePos, timeStart, timeEnd, subText):
         
         noteFields = { k:"" for k in self.configManager.getFields()}
 
         model = mw.col.models.byName(self.settings["default_model"])
         mw.col.models.setCurrent(model)
+
+        noteFields["Word"] = word
 
         source = os.path.basename(self.filePath)
         source = os.path.splitext(source)[0]

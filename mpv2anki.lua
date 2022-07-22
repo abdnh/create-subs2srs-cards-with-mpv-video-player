@@ -106,23 +106,27 @@ function on_playback_restart()
     end
 end
 
-function create_anki_card()
+function create_anki_card(word)
     local time_pos = mp.get_property_number("time-pos")
     local status_msg = ""
     local sub_text = ""
-    
+
+    if word == nil then
+        word = ""
+    end
+
     if mp.get_property("sub-text") ~= nil then
         sub_text = mp.get_property("sub-text")
     end
 
     if start_timestamp ~= nil and end_timestamp ~= nil and end_timestamp > start_timestamp then
-        status_msg = "[mpv2anki] " .. time_pos .. " # " .. start_timestamp .. " # " .. end_timestamp .. " # " .. sub_text
+        status_msg = "[mpv2anki] " .. time_pos .. " # " .. start_timestamp .. " # " .. end_timestamp .. " # " .. word .. " # " .. sub_text
     elseif start_timestamp ~= nil and start_timestamp < time_pos then
-        status_msg = "[mpv2anki] " .. time_pos .. " # " .. start_timestamp .. " # " .. "-1" .. " # " .. sub_text
+        status_msg = "[mpv2anki] " .. time_pos .. " # " .. start_timestamp .. " # " .. "-1" .. " # " .. word .. " # " .. sub_text
     else
-        status_msg = "[mpv2anki] " .. time_pos .. " # " .. "-1" .. " # " .. "-1" .. " # " .. sub_text
+        status_msg = "[mpv2anki] " .. time_pos .. " # " .. "-1" .. " # " .. "-1" .. " # " .. word .. " # " .. sub_text
     end
-    
+
     mp.set_property("term-status-msg", status_msg)
     mp.add_timeout("0.25", reset_property)
 
@@ -143,3 +147,4 @@ mp.add_key_binding("ctrl+w", "replay-the-first-seconds", replay_the_first_second
 mp.add_key_binding("ctrl+e", "replay-the-last-seconds", replay_the_last_seconds)
 mp.add_key_binding("ctrl+r", "reset-timestamps", reset_timestamps)
 mp.add_key_binding("b", "create-anki-card", create_anki_card)
+mp.register_script_message("create-anki-word-card", create_anki_card)
