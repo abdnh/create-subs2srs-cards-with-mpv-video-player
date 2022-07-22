@@ -40,6 +40,7 @@ import sys
 
 from os.path import expanduser
 from hashlib import sha1
+from typing import Optional
 
 # import the main window object (mw) from aqt
 from aqt import mw
@@ -129,6 +130,10 @@ class InterSubsHandler(intersubs.handler.InterSubsHandler):
     def on_sub_clicked(self, text: str, idx: int) -> None:
         word = self.lookup_word_from_index(text, idx)
         self.mpv.command("script-message", "create-anki-word-card", word)
+
+    def get_popup_html_path(self) -> Optional[str]:
+        # disable popup for now
+        return None
 
 class SubtitlesHelper():
     def __init__(self, configManager):
