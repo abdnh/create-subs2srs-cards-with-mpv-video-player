@@ -6,15 +6,44 @@ from typing import Any
 
 from aqt.qt import *
 
-from .dictionary import OnClickDictionary
+
+from .dictionary import PopupDictionary
+from .intersubs_handler import InterSubsHandler
+from intersubs.popup import Popup
 from ..utils import find_addon_by_names
 
 
-class ZIMReaderDict(OnClickDictionary):
-    """ZIM Reader integration (https://github.com/abdnh/anki-zim-reader)"""
+class ZIMDIctInterSubsHandler(InterSubsHandler):
+    def __init__(self, mpv: MPVInterSubs, dictionary: PopupDictionary | None):
+        super().__init__(mpv, dictionary)
+        self.server: Any | None = None
+
+    def on_popup_created(self, popup: Popup) -> None:
+        if self.server:
+            return
+        self.server = self.dictionary.mod.server.create_server(self.dictionary.file)
+        self.server.start()
+        # FIXME: we should shut down the server after mpv is closed
+
+    def on_popup_will_show(self, popup: Popup, text: str) -> bool:
+        redirected = text
+        try:
+            redirected = self.dictionary.parser.follow_redirects(
+                text, self.server.dictionary
+            )
+        except struct.error:
+            # FIXME: swallow random unpacking errors for now until we find a fix for https://github.com/abdnh/anki-zim-reader/issues/3
+            pass
+        popup.load(QUrl(f"{self.server.url}/{redirected}"))
+        return True
+
+
+class ZIMReaderPopupDict(PopupDictionary):
+    """Pop-up dictionary for ZIM Reader (https://github.com/abdnh/anki-zim-reader)"""
 
     name = "ZIM Reader"
     package_name = "zim_reader"
+    intersubs_handler_class = ZIMDIctInterSubsHandler
 
     def __init__(self) -> None:
         self.mod: Any | None = None
@@ -30,37 +59,6 @@ class ZIMReaderDict(OnClickDictionary):
     def _init_dict(self) -> None:
         self.mod = find_addon_by_names([self.package_name, self.name])
 
-    def get_fields(self) -> list[str]:
-        fields = [
-            "Definitions",
-            "Examples",
-            "Gender",
-            "Part of speech",
-            "Inflection",
-            "Translation",
-        ]
-        return fields
-
-    def fill_fields(self, word: str, note_fields: dict[str, str]) -> None:
-        file = self.file
-        parser = self.parser
-        if not (file or parser):
-            return
-        zimdict = self.mod.dictionaries.dictionary.ZIMDict(file)
-        try:
-            wikientry = zimdict.lookup(word, parser)
-        except struct.error:
-            # FIXME: swallow random unpacking errors for now until we find a fix for https://github.com/abdnh/anki-zim-reader/issues/3
-            return
-        if wikientry:
-            # TODO: Use the same formatting used by the ZIM Reader add-on - maybe the add-on should provide a function for that
-            note_fields["Definitions"] = "<br>".join(wikientry.definitions)
-            note_fields["Examples"] = "<br>".join(wikientry.examples)
-            note_fields["Gender"] = wikientry.gender
-            note_fields["Part of speech"] = wikientry.pos
-            note_fields["Inflection"] = wikientry.inflections
-            note_fields["Definition"] = wikientry.translations
-
     @property
     def widget(self) -> ZIMReaderWidget:
         if self._widget:
@@ -68,7 +66,13 @@ class ZIMReaderDict(OnClickDictionary):
         self._widget = ZIMReaderWidget(self)
         return self._widget
 
+    def collect_widget_settings(self) -> None:
+        self.file = self.widget.selected_file
+        self.parser = self.widget.selected_parser
 
+
+# Copied from onclick/zim_reader.py with modifications
+# TODO: DRY
 class ZIMReaderWidget(QWidget):
     def __init__(self, zim_reader: ZIMReaderDict) -> None:
         super().__init__()
@@ -99,8 +103,3 @@ class ZIMReaderWidget(QWidget):
         if idx >= 0:
             return self.parsers[idx]()
         return None
-
-    def closeEvent(self, event: QCloseEvent) -> None:
-        self.zim_reader.file = self.selected_file
-        self.zim_reader.parser = self.selected_parser
-        return super().closeEvent(event)

@@ -30,6 +30,7 @@ Nickolay <kelciour@gmail.com>
 """
 
 from __future__ import annotations
+from typing import Type
 
 
 __version__ = "1.0.0-alpha3"
@@ -44,7 +45,6 @@ import sys
 from distutils.spawn import find_executable
 from hashlib import sha1
 from os.path import expanduser
-from typing import Optional
 
 from anki.hooks import addHook
 from anki.lang import _, langs
@@ -60,19 +60,23 @@ from aqt.studydeck import StudyDeck
 # import the "get file" tool from utils.py
 from aqt.utils import getFile, getOnlyText, showText, showWarning
 
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "vendor"))
+
 from . import icons_rc
 from . import onclick
 from .onclick import OnClickDictionary
+from . import popup
+from .popup import PopupDictionary
+from .popup.intersubs_handler import InterSubsHandler
 
 try:
     from aqt.sound import _packagedCmd
 except:
     from anki.sound import _packagedCmd
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "vendor"))
 
-import intersubs
-import intersubs.handler
+
 import pysubs2
 from intersubs.main import run as intersubs_run
 from intersubs.mpv_intersubs import MPVInterSubs
@@ -143,16 +147,6 @@ def fix_glob_square_brackets(glob_pattern):
     glob_pattern = re.sub(r"(?<!\[)\]", "[]]", glob_pattern)
 
     return glob_pattern
-
-
-class InterSubsHandler(intersubs.handler.InterSubsHandler):
-    def on_sub_clicked(self, text: str, idx: int) -> None:
-        word = self.lookup_word_from_index(text, idx)
-        self.mpv.command("script-message", "create-anki-word-card", word)
-
-    def get_popup_html_path(self) -> Optional[str]:
-        # disable popup for now
-        return None
 
 
 class SubtitlesHelper:
@@ -486,6 +480,8 @@ class ConfigManager:
             os.path.dirname(os.path.abspath(__file__)), "user_files", "config.json"
         )
         self.onClickDict: OnClickDictionary | None = None
+        self.popupDict: PopupDictionary | None = None
+
         self.init()
         self.load()
 
@@ -579,7 +575,7 @@ class MessageHandler(QObject):
 
 class MPVMonitor(MPVInterSubs):
     def __init__(
-        self, executable, popenEnv, fileUrls, mpvConf, msgHandler, subsManager
+        self, executable, popenEnv, fileUrls, mpvConf, msgHandler, subsManager, popupDict: PopupDictionary | None = None,
     ):
         self.executable = executable
         self.popenEnv = popenEnv
@@ -601,7 +597,11 @@ class MPVMonitor(MPVInterSubs):
             os.path.join(os.path.dirname(os.path.abspath(__file__)), "mpv2anki.lua"),
         )
 
-        intersubs_run(fileUrls, app=mw.app, mpv=self, handler=InterSubsHandler(self))
+        if popupDict:
+            handler = popupDict.intersubs_handler_class(self, popupDict)
+        else:
+            handler = InterSubsHandler(self, None)
+        intersubs_run(fileUrls, app=mw.app, mpv=self, handler=handler)
 
     def on_property_term_status_msg(self, statusMsg=None):
         m = re.match(
@@ -678,6 +678,7 @@ class AnkiHelper(QObject):
             self.mpvConf,
             self.msgHandler,
             self.subsManager,
+            self.configManager.popupDict,
         )
 
         self.settings = self.configManager.getSettings()
@@ -1393,6 +1394,27 @@ class MainWindow(QDialog):
             [dictionary.name for dictionary in self.onclick_dicts]
         )
 
+        popupDictGroup = QGroupBox("Pop-up Dictionary")
+        grid5 = QGridLayout()
+        grid5.addWidget(QLabel("Dictionary"), 0, 0)
+        self.popupDict = QComboBox()
+        qconnect(self.popupDict.currentIndexChanged, self.onPopupDictChanged)
+        grid5.addWidget(self.popupDict, 0, 1, 1, 4)
+        self.popupDictSpecificGroup = QGroupBox("Settings")
+        self.popupDictSpecificGroup.setLayout(QVBoxLayout())
+        self.popupDictSpecificGroup.layout().addWidget(QWidget())
+        grid5.addWidget(self.popupDictSpecificGroup, 1, 0, 1, 5)
+        popupDictGroup.setLayout(grid5)
+        grid.addWidget(popupDictGroup, 5, 0, 1, 5)
+        self.popup_dicts = [
+            dictionary
+            for dictionary in popup.dictionaries
+            if dictionary.is_available()
+        ]
+        self.popupDict.addItems(
+            [dictionary.name for dictionary in self.popup_dicts]
+        )
+
         # Go!
 
         self.openURLButton = QPushButton("Open URL")
@@ -1419,6 +1441,14 @@ class MainWindow(QDialog):
         layout = self.onClickDictSpecificGroup.layout()
         layout.replaceWidget(layout.itemAt(0).widget(), dictionary.widget)
         self.configManager.onClickDict = dictionary
+
+    def onPopupDictChanged(self, index: int) -> None:
+        dictionary = self.popup_dicts[index]()
+        layout = self.popupDictSpecificGroup.layout()
+        layout.replaceWidget(layout.itemAt(0).widget(), dictionary.widget)
+        # FIXME: pop-up dict has nothing to do with the config manager - store it somewhere else!
+        self.configManager.popupDict = dictionary
+
 
     def chooseSubs(self, cb, cblc):
         if cb.currentText() == "":
@@ -1502,10 +1532,9 @@ class MainWindow(QDialog):
             showWarning(msg)
 
     def accept(self) -> None:
-        # Allow close event handler of dictionary widget to be called and options to be saved if needed
-        self.configManager.onClickDict.widget.close()
+        if self.configManager.popupDict:
+            self.configManager.popupDict.collect_widget_settings()
         return super().accept()
-
 
 def openVideoWithMPV():
     env = os.environ.copy()
