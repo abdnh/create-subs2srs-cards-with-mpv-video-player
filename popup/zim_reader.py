@@ -37,6 +37,9 @@ class ZIMDIctInterSubsHandler(InterSubsHandler):
         popup.load(QUrl(f"{self.server.url}/{redirected}"))
         return True
 
+    def on_shutdown(self) -> None:
+        self.server.shutdown()
+
 
 class ZIMReaderPopupDict(PopupDictionary):
     """Pop-up dictionary for ZIM Reader (https://github.com/abdnh/anki-zim-reader)"""
