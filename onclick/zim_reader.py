@@ -49,7 +49,7 @@ class ZIMReaderDict(OnClickDictionary):
         zimdict = self.mod.dictionaries.dictionary.ZIMDict(file)
         try:
             wikientry = zimdict.lookup(word, parser)
-        except struct.error:
+        except:
             # FIXME: swallow random unpacking errors for now until we find a fix for https://github.com/abdnh/anki-zim-reader/issues/3
             return
         if wikientry:
