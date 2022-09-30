@@ -76,7 +76,6 @@ except:
     from anki.sound import _packagedCmd
 
 
-
 import pysubs2
 from intersubs.main import run as intersubs_run
 from intersubs.mpv_intersubs import MPVInterSubs
@@ -545,7 +544,6 @@ class ConfigManager:
             "[webm] Video (with context)",
             "[webm] Video (HTML5)",
             "[webm] Video (HTML5 with context)",
-            "Definition",
         ]
         if self.onClickDict:
             onclick_fields = self.onClickDict.get_fields()
@@ -575,7 +573,14 @@ class MessageHandler(QObject):
 
 class MPVMonitor(MPVInterSubs):
     def __init__(
-        self, executable, popenEnv, fileUrls, mpvConf, msgHandler, subsManager, popupDict: PopupDictionary | None = None,
+        self,
+        executable,
+        popenEnv,
+        fileUrls,
+        mpvConf,
+        msgHandler,
+        subsManager,
+        popupDict: PopupDictionary | None = None,
     ):
         self.executable = executable
         self.popenEnv = popenEnv
@@ -873,7 +878,8 @@ class AnkiHelper(QObject):
         mw.col.models.setCurrent(model)
 
         noteFields["Word"] = word
-        self.configManager.onClickDict.fill_fields(word, noteFields)
+        if self.configManager.onClickDict:
+            self.configManager.onClickDict.fill_fields(word, noteFields)
 
         source = os.path.basename(self.filePath)
         source = os.path.splitext(source)[0]
@@ -1407,13 +1413,9 @@ class MainWindow(QDialog):
         popupDictGroup.setLayout(grid5)
         grid.addWidget(popupDictGroup, 5, 0, 1, 5)
         self.popup_dicts = [
-            dictionary
-            for dictionary in popup.dictionaries
-            if dictionary.is_available()
+            dictionary for dictionary in popup.dictionaries if dictionary.is_available()
         ]
-        self.popupDict.addItems(
-            [dictionary.name for dictionary in self.popup_dicts]
-        )
+        self.popupDict.addItems([dictionary.name for dictionary in self.popup_dicts])
 
         # Go!
 
@@ -1448,7 +1450,6 @@ class MainWindow(QDialog):
         layout.replaceWidget(layout.itemAt(0).widget(), dictionary.widget)
         # FIXME: pop-up dict has nothing to do with the config manager - store it somewhere else!
         self.configManager.popupDict = dictionary
-
 
     def chooseSubs(self, cb, cblc):
         if cb.currentText() == "":
@@ -1534,7 +1535,10 @@ class MainWindow(QDialog):
     def accept(self) -> None:
         if self.configManager.popupDict:
             self.configManager.popupDict.collect_widget_settings()
+        if self.configManager.onClickDict:
+            self.configManager.onClickDict.collect_widget_settings()
         return super().accept()
+
 
 def openVideoWithMPV():
     env = os.environ.copy()

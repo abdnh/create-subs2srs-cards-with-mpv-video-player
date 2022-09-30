@@ -33,3 +33,7 @@ class OnClickDictionary(ABC):
         raise NotImplementedError(
             "Implement this property to return the widget that will be shown to the user to configure the dictionary if needed"
         )
+
+    def collect_widget_settings(self) -> None:
+        """Used to save any settings required for the dictionary from its widget before the widget is closed"""
+        return

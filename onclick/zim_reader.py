@@ -46,10 +46,12 @@ class ZIMReaderDict(OnClickDictionary):
         parser = self.parser
         if not (file or parser):
             return
+        # FIXME: avoid re-initializing ZIMDict for each card
         zimdict = self.mod.dictionaries.dictionary.ZIMDict(file, parser)
         try:
-            wikientry = zimdict.lookup(word, parser)
-        except:
+            wikientry = zimdict.lookup(word)
+        except Exception as exc:
+            print(exc)
             # FIXME: swallow random unpacking errors for now until we find a fix for https://github.com/abdnh/anki-zim-reader/issues/3
             return
         if wikientry:
@@ -59,7 +61,7 @@ class ZIMReaderDict(OnClickDictionary):
             note_fields["Gender"] = wikientry.gender
             note_fields["Part of speech"] = wikientry.pos
             note_fields["Inflection"] = wikientry.inflections
-            note_fields["Definition"] = wikientry.translations
+            note_fields["Translation"] = wikientry.translations
 
     @property
     def widget(self) -> ZIMReaderWidget:
@@ -67,6 +69,10 @@ class ZIMReaderDict(OnClickDictionary):
             return self._widget
         self._widget = ZIMReaderWidget(self)
         return self._widget
+
+    def collect_widget_settings(self) -> None:
+        self.file = self.widget.selected_file
+        self.parser = self.widget.selected_parser
 
 
 class ZIMReaderWidget(QWidget):
@@ -99,8 +105,3 @@ class ZIMReaderWidget(QWidget):
         if idx >= 0:
             return self.parsers[idx]()
         return None
-
-    def closeEvent(self, event: QCloseEvent) -> None:
-        self.zim_reader.file = self.selected_file
-        self.zim_reader.parser = self.selected_parser
-        return super().closeEvent(event)
