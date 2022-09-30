@@ -46,7 +46,7 @@ class ZIMReaderDict(OnClickDictionary):
         parser = self.parser
         if not (file or parser):
             return
-        zimdict = self.mod.dictionaries.dictionary.ZIMDict(file)
+        zimdict = self.mod.dictionaries.dictionary.ZIMDict(file, parser)
         try:
             wikientry = zimdict.lookup(word, parser)
         except:

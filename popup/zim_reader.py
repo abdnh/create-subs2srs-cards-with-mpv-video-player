@@ -21,20 +21,14 @@ class ZIMDIctInterSubsHandler(InterSubsHandler):
     def on_popup_created(self, popup: Popup) -> None:
         if self.server:
             return
-        self.server = self.dictionary.mod.server.create_server(self.dictionary.file)
+        self.server = self.dictionary.mod.server.create_server(
+            self.dictionary.file, self.dictionary.parser, follow_redirects=True
+        )
         self.server.start()
-        # FIXME: we should shut down the server after mpv is closed
 
     def on_popup_will_show(self, popup: Popup, text: str) -> bool:
-        redirected = text
-        try:
-            redirected = self.dictionary.parser.follow_redirects(
-                text, self.server.dictionary
-            )
-        except struct.error:
-            # FIXME: swallow random unpacking errors for now until we find a fix for https://github.com/abdnh/anki-zim-reader/issues/3
-            pass
-        popup.load(QUrl(f"{self.server.url}/{redirected}"))
+        text = text.strip()
+        popup.load(QUrl(f"{self.server.url}/{text}"))
         return True
 
     def on_shutdown(self) -> None:
