@@ -1,4 +1,7 @@
-vendor/
-venv/
 __pycache__/
+venv/
+*.pyc
+vendor/
 ankidata/
+src/user_files/config.json
+*.ankiaddon
