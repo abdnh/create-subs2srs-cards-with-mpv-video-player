@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-import struct
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, Type
 
 from aqt.qt import *
 from intersubs.popup import Popup
+
+if TYPE_CHECKING:
+    from zim_reader.dictionaries.parser import Parser
+    from zim_reader.server import ZIMServer
 
 from ..utils import find_addon_by_names
 from .dictionary import PopupDictionary
@@ -20,7 +23,7 @@ class ZIMDIctInterSubsHandler(InterSubsHandler):
     def on_popup_created(self, popup: Popup) -> None:
         if self.server:
             return
-        self.server = self.dictionary.mod.server.create_server(
+        self.server: ZIMServer = self.dictionary.mod.server.create_server(
             self.dictionary.file, self.dictionary.parser, follow_redirects=True
         )
         self.server.start()
@@ -45,7 +48,7 @@ class ZIMReaderPopupDict(PopupDictionary):
         self.mod: Any | None = None
         self._widget: QWidget | None = None
         self.file: Path | None = None
-        self.parser: Any | None = None
+        self.parser: Parser | None = None
         self._init_dict()
 
     @classmethod
@@ -82,7 +85,7 @@ class ZIMReaderWidget(QWidget):
         grid.addWidget(self.parserComboBox, 1, 1)
         self.files = zim_reader.mod.dictionaries.get_files()
         self.fileComboBox.addItems([file.name for file in self.files])
-        self.parsers = zim_reader.mod.dictionaries.PARSER_CLASSES
+        self.parsers: list[Type[Parser]] = zim_reader.mod.dictionaries.PARSER_CLASSES
         self.parserComboBox.addItems([parser.name for parser in self.parsers])
         self.setLayout(grid)
 
@@ -94,7 +97,7 @@ class ZIMReaderWidget(QWidget):
         return None
 
     @property
-    def selected_parser(self) -> Any | None:
+    def selected_parser(self) -> Parser | None:
         idx = self.parserComboBox.currentIndex()
         if idx >= 0:
             return self.parsers[idx]()

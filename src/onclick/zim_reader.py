@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-import struct
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, Type
 
 from aqt.qt import *
+
+if TYPE_CHECKING:
+    from zim_reader.dictionaries import ZIMDict
+    from zim_reader.dictionaries.parser import Parser
 
 from ..utils import find_addon_by_names
 from .dictionary import OnClickDictionary
@@ -20,7 +23,7 @@ class ZIMReaderDict(OnClickDictionary):
         self.mod: Any | None = None
         self._widget: QWidget | None = None
         self.file: Path | None = None
-        self.parser: Any | None = None
+        self.parser: Parser | None = None
         self._init_dict()
 
     @classmethod
@@ -31,6 +34,7 @@ class ZIMReaderDict(OnClickDictionary):
         self.mod = find_addon_by_names([self.package_name, self.name])
 
     def get_fields(self) -> list[str]:
+        # FIXME: get those fields from ZIM Reader itself instead of hardcoding them here
         fields = [
             "Definitions",
             "Examples",
@@ -47,13 +51,8 @@ class ZIMReaderDict(OnClickDictionary):
         if not (file or parser):
             return
         # FIXME: avoid re-initializing ZIMDict for each card
-        zimdict = self.mod.dictionaries.dictionary.ZIMDict(file, parser)
-        try:
-            wikientry = zimdict.lookup(word)
-        except Exception as exc:
-            print(exc)
-            # FIXME: swallow random unpacking errors for now until we find a fix for https://github.com/abdnh/anki-zim-reader/issues/3
-            return
+        zimdict: ZIMDict = self.mod.dictionaries.ZIMDict(file, parser)
+        wikientry = zimdict.lookup(word)
         if wikientry:
             # TODO: Use the same formatting used by the ZIM Reader add-on - maybe the add-on should provide a function for that
             note_fields["Definitions"] = "<br>".join(wikientry.definitions)
@@ -88,7 +87,7 @@ class ZIMReaderWidget(QWidget):
         grid.addWidget(self.parserComboBox, 1, 1)
         self.files = zim_reader.mod.dictionaries.get_files()
         self.fileComboBox.addItems([file.name for file in self.files])
-        self.parsers = zim_reader.mod.dictionaries.PARSER_CLASSES
+        self.parsers: list[Type[Parser]] = zim_reader.mod.dictionaries.PARSER_CLASSES
         self.parserComboBox.addItems([parser.name for parser in self.parsers])
         self.setLayout(grid)
 
@@ -100,7 +99,7 @@ class ZIMReaderWidget(QWidget):
         return None
 
     @property
-    def selected_parser(self) -> Any | None:
+    def selected_parser(self) -> Parser | None:
         idx = self.parserComboBox.currentIndex()
         if idx >= 0:
             return self.parsers[idx]()
