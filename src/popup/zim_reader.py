@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from pathlib import Path
 import struct
+from pathlib import Path
 from typing import Any
 
 from aqt.qt import *
+from intersubs.popup import Popup
 
-
+from ..utils import find_addon_by_names
 from .dictionary import PopupDictionary
 from .intersubs_handler import InterSubsHandler
-from intersubs.popup import Popup
-from ..utils import find_addon_by_names
 
 
 class ZIMDIctInterSubsHandler(InterSubsHandler):

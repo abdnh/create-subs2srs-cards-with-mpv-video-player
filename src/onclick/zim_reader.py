@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from pathlib import Path
 import struct
+from pathlib import Path
 from typing import Any
 
 from aqt.qt import *
 
-from .dictionary import OnClickDictionary
 from ..utils import find_addon_by_names
+from .dictionary import OnClickDictionary
 
 
 class ZIMReaderDict(OnClickDictionary):

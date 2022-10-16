@@ -30,8 +30,8 @@ Nickolay <kelciour@gmail.com>
 """
 
 from __future__ import annotations
-from typing import Type
 
+from typing import Type
 
 __version__ = "1.0.0-alpha3"
 
@@ -60,13 +60,10 @@ from aqt.studydeck import StudyDeck
 # import the "get file" tool from utils.py
 from aqt.utils import getFile, getOnlyText, showText, showWarning
 
-
 sys.path.append(os.path.join(os.path.dirname(__file__), "vendor"))
 
-from . import icons_rc
-from . import onclick
+from . import icons_rc, onclick, popup
 from .onclick import OnClickDictionary
-from . import popup
 from .popup import PopupDictionary
 from .popup.intersubs_handler import InterSubsHandler
 
@@ -74,7 +71,6 @@ try:
     from aqt.sound import _packagedCmd
 except:
     from anki.sound import _packagedCmd
-
 
 import pysubs2
 from intersubs.main import run as intersubs_run
