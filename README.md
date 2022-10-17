@@ -8,3 +8,5 @@ Additional features are the following:
 - The ability to add notes by clicking on any subtitle word instead of the usual keyboard shortcut, with the added bonus that you can configure any supported dictionary to automatically fill in certain fields of the note with the word's definitions, example sentences, etc.
 
 The only dictionary source currently supported is the ZIM files imported via the [ZIM Reader add-on](https://ankiweb.net/shared/info/951350249). If you have ZIM Reader installed with some dictionary files imported, they should show up in this add-on's interface.
+
+*This add-on is in beta. Bug reports and suggestions are appreciated*.
