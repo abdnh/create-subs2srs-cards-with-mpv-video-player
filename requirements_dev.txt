@@ -1,7 +1,7 @@
 -r requirements.txt
 anki>=2.1.45
 aqt>=2.1.45
-zim_reader @ git+https://github.com/abdnh/anki-zim-reader@b52fe12459502346c044a6ed26b976b599c5e197
+zim_reader @ git+https://github.com/abdnh/anki-zim-reader@a9189928a10f7f431066e63296e89ed04f5d2fa3
 mypy==0.982
 pylint==2.15.4
 isort==5.10.1

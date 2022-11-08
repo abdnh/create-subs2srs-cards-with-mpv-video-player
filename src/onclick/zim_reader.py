@@ -51,7 +51,7 @@ class ZIMReaderDict(OnClickDictionary):
         if not (file or parser):
             return
         # FIXME: avoid re-initializing ZIMDict for each card
-        zimdict: ZIMDict = self.mod.dictionaries.ZIMDict(file, parser)
+        zimdict: ZIMDict = self.mod.dictionaries.ZIMDict.from_basedir(file, parser)
         wikientry = zimdict.lookup(word)
         if wikientry:
             # TODO: Use the same formatting used by the ZIM Reader add-on - maybe the add-on should provide a function for that
