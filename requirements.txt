@@ -1,2 +1,2 @@
-intersubs @ git+https://github.com/abdnh/intersubs@582803939f23c594af59dc1b716b8686d8bb366a
+intersubs @ git+https://github.com/abdnh/intersubs@45815cddaf20fe8f725ea9aa5b16d5af8416c37c
 # TODO: add pysubs2 here and remove from git tree
