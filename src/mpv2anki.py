@@ -31,7 +31,7 @@ Nickolay <kelciour@gmail.com>
 
 from __future__ import annotations
 
-from typing import Type
+from typing import Any, Type
 
 __version__ = "1.0.0-alpha3"
 
@@ -559,6 +559,12 @@ class ConfigManager:
         if "mapping" not in self.config or model not in self.config["mapping"]:
             return {}
         return self.config["mapping"][model]
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return self.config.get(key, default)
+
+    def set(self, key: str, value: Any) -> None:
+        self.config[key] = value
 
 
 # Fix for ... cannot be converted to PyQt5.QtCore.QObject in this context
@@ -1395,6 +1401,9 @@ class MainWindow(QDialog):
         self.onClickDict.addItems(
             [dictionary.name for dictionary in self.onclick_dicts]
         )
+        for i, dictionary in enumerate(self.onclick_dicts):
+            if dictionary.name == self.configManager.get("onclick_dict"):
+                self.onClickDict.setCurrentIndex(i)
 
         popupDictGroup = QGroupBox("Pop-up Dictionary")
         grid5 = QGridLayout()
@@ -1412,6 +1421,9 @@ class MainWindow(QDialog):
             dictionary for dictionary in popup.dictionaries if dictionary.is_available()
         ]
         self.popupDict.addItems([dictionary.name for dictionary in self.popup_dicts])
+        for i, dictionary in enumerate(self.popup_dicts):
+            if dictionary.name == self.configManager.get("popup_dict"):
+                self.popupDict.setCurrentIndex(i)
 
         # Go!
 
@@ -1435,13 +1447,17 @@ class MainWindow(QDialog):
         # vbox.setSizeConstraint(QLayout.SetFixedSize)
 
     def onClickDictChanged(self, index: int) -> None:
-        dictionary = self.onclick_dicts[index]()
+        dictionary = self.onclick_dicts[index](
+            self.configManager.get("onclick_options", {})
+        )
         layout = self.onClickDictSpecificGroup.layout()
         layout.replaceWidget(layout.itemAt(0).widget(), dictionary.widget)
         self.configManager.onClickDict = dictionary
 
     def onPopupDictChanged(self, index: int) -> None:
-        dictionary = self.popup_dicts[index]()
+        dictionary = self.popup_dicts[index](
+            self.configManager.get("popup_options", {})
+        )
         layout = self.popupDictSpecificGroup.layout()
         layout.replaceWidget(layout.itemAt(0).widget(), dictionary.widget)
         # FIXME: pop-up dict has nothing to do with the config manager - store it somewhere else!
@@ -1521,19 +1537,23 @@ class MainWindow(QDialog):
         self.start()
 
     def start(self):
+        if self.configManager.popupDict:
+            self.configManager.set("popup_dict", self.configManager.popupDict.name)
+            self.configManager.set(
+                "popup_options", self.configManager.popupDict.collect_widget_settings()
+            )
+        if self.configManager.onClickDict:
+            self.configManager.set("onclick_dict", self.configManager.onClickDict.name)
+            self.configManager.set(
+                "onclick_options",
+                self.configManager.onClickDict.collect_widget_settings(),
+            )
         self.saveSettings()
         ret, msg = self.validate()
         if ret:
             self.accept()
         else:
             showWarning(msg)
-
-    def accept(self) -> None:
-        if self.configManager.popupDict:
-            self.configManager.popupDict.collect_widget_settings()
-        if self.configManager.onClickDict:
-            self.configManager.onClickDict.collect_widget_settings()
-        return super().accept()
 
 
 def openVideoWithMPV():
