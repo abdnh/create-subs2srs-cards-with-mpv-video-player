@@ -11,7 +11,8 @@ $(PACKAGE_NAME).ankiaddon: src/*
 	( cd src/; zip -r ../$@ * -x user_files/config.json )
 
 vendor:
-	pip install -r requirements.txt --no-deps -t src/vendor
+	pip install pysubs2==1.6.0 -U -t src/vendor
+	pip install git+https://github.com/abdnh/intersubs@45815cddaf20fe8f725ea9aa5b16d5af8416c37c -U --no-deps -t src/vendor
 
 fix:
 	python -m black src --exclude="vendor"
