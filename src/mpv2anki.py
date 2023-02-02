@@ -1328,9 +1328,8 @@ class MainWindow(QDialog):
             "Pad Timings",
             ["Start:", "End:", "ms"],
             [self.settings["pad_start"], self.settings["pad_end"]],
-            [0, 10000, 1],
+            [-2147483648, 2147483647, 1],
         )
-
         hbox.addWidget(imageGroup)
         hbox.addWidget(videoGroup)
         hbox.addWidget(padGroup)
