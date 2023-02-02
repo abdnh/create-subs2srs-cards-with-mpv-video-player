@@ -590,6 +590,8 @@ class MPVMonitor(MPVInterSubs):
         self.mpvConf = mpvConf
         self.msgHandler = msgHandler
 
+        sub_langs = list(filter(None, [self.subsManager.settings["subs_native_language_code"], self.subsManager.settings["subs_target_language_code"]]))
+        self.default_argv += ["""--ytdl-raw-options=sub-lang="%s",write-sub=,write-auto-sub=""" % ",".join(sub_langs)]
         super().__init__()
         # super().__init__(window_id=None, debug=False)
 
