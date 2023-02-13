@@ -70,7 +70,9 @@ class ZIMReaderDict(OnClickDictionary):
         self._widget = ZIMReaderWidget(self, self.options)
         return self._widget
 
-    def collect_widget_settings(self) -> dict:
+    def collect_widget_settings(self) -> dict | None:
+        if not self.file:
+            return None
         self.file = self.widget.selected_file
         self.parser = self.widget.selected_parser
         return {

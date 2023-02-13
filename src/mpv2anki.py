@@ -1539,16 +1539,24 @@ class MainWindow(QDialog):
 
     def start(self):
         if self.configManager.popupDict:
-            self.configManager.set("popup_dict", self.configManager.popupDict.name)
-            self.configManager.set(
-                "popup_options", self.configManager.popupDict.collect_widget_settings()
-            )
+            popup_options = self.configManager.popupDict.collect_widget_settings()
+            if popup_options:
+                self.configManager.set("popup_dict", self.configManager.popupDict.name)
+                self.configManager.set(
+                    "popup_options", popup_options
+                )
+            else:
+                self.configManager.popupDict = None
         if self.configManager.onClickDict:
-            self.configManager.set("onclick_dict", self.configManager.onClickDict.name)
-            self.configManager.set(
-                "onclick_options",
-                self.configManager.onClickDict.collect_widget_settings(),
-            )
+            onclick_options = self.configManager.onClickDict.collect_widget_settings()
+            if onclick_options:
+                self.configManager.set("onclick_dict", self.configManager.onClickDict.name)
+                self.configManager.set(
+                    "onclick_options",
+                    onclick_options,
+                )
+            else:
+                self.configManager.onClickDict = None
         self.saveSettings()
         ret, msg = self.validate()
         if ret:
