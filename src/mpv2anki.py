@@ -66,6 +66,7 @@ from . import icons_rc, onclick, popup
 from .onclick import OnClickDictionary
 from .popup import PopupDictionary
 from .popup.intersubs_handler import InterSubsHandler
+from intersubs.mpv import MPVCommandError
 
 try:
     from aqt.sound import _packagedCmd
