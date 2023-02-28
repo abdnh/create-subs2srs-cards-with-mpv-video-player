@@ -13,7 +13,7 @@ from ..utils import find_addon_by_names
 from .dictionary import OnClickDictionary
 
 
-class ZIMReaderDict(OnClickDictionary):
+class ZIMReaderOnclickDict(OnClickDictionary):
     """ZIM Reader integration (https://github.com/abdnh/anki-zim-reader)"""
 
     name = "ZIM Reader"
@@ -82,7 +82,7 @@ class ZIMReaderDict(OnClickDictionary):
 
 
 class ZIMReaderWidget(QWidget):
-    def __init__(self, zim_reader: ZIMReaderDict, options: dict) -> None:
+    def __init__(self, zim_reader: ZIMReaderOnclickDict, options: dict) -> None:
         super().__init__()
         self.zim_reader = zim_reader
         grid = QGridLayout()

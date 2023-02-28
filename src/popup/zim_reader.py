@@ -80,7 +80,7 @@ class ZIMReaderPopupDict(PopupDictionary):
 # Copied from onclick/zim_reader.py with modifications
 # TODO: DRY
 class ZIMReaderWidget(QWidget):
-    def __init__(self, zim_reader: ZIMReaderDict, options: dict) -> None:
+    def __init__(self, zim_reader: ZIMReaderPopupDict, options: dict) -> None:
         super().__init__()
         self.zim_reader = zim_reader
         grid = QGridLayout()
