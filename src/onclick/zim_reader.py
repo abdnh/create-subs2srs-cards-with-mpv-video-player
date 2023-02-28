@@ -71,7 +71,7 @@ class ZIMReaderDict(OnClickDictionary):
         return self._widget
 
     def collect_widget_settings(self) -> dict | None:
-        if not self.file:
+        if not self.widget.selected_file:
             return None
         self.file = self.widget.selected_file
         self.parser = self.widget.selected_parser
@@ -94,15 +94,18 @@ class ZIMReaderWidget(QWidget):
         grid.addWidget(self.parserComboBox, 1, 1)
         self.files = zim_reader.mod.dictionaries.get_files()
         self.fileComboBox.addItems([file.name for file in self.files])
+        self.parsers: list[Type[Parser]] = zim_reader.mod.dictionaries.PARSER_CLASSES
+        self.parserComboBox.addItems([parser.name for parser in self.parsers])
+        self.update_options(options)
+        self.setLayout(grid)
+
+    def update_options(self, options: dict) -> None:
         for i, file in enumerate(self.files):
             if options.get("file", None) == file.name:
                 self.fileComboBox.setCurrentIndex(i)
-        self.parsers: list[Type[Parser]] = zim_reader.mod.dictionaries.PARSER_CLASSES
-        self.parserComboBox.addItems([parser.name for parser in self.parsers])
         for i, parser in enumerate(self.parsers):
             if options.get("parser", None) == parser.name:
                 self.parserComboBox.setCurrentIndex(i)
-        self.setLayout(grid)
 
     @property
     def selected_file(self) -> Path | None:

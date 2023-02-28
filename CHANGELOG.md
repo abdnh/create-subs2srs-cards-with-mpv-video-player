@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+### Added
+
+-   Added a preset feature to save different sets of settings
+
 ### Fixed
 
 -   Fixed some subs of online videos not being made available.
 -   Fixed error when some mapped dictionary fields have no content to fill in.
 -   Take A/V sync into account for created media
+-   Fixed dictionary settings not being saved
 
 ## [0.1.2] - 2023-02-14
 

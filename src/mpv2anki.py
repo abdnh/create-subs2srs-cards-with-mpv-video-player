@@ -477,9 +477,10 @@ class ConfigManager:
         )
         self.onClickDict: OnClickDictionary | None = None
         self.popupDict: PopupDictionary | None = None
-
+        self._raw_config = {}
+        self.presets = []
+        self.currentPreset = ""
         self.init()
-        self.load()
 
     def init(self):
         self.default = {
@@ -497,19 +498,45 @@ class ConfigManager:
             "subs_target_language_code": "en",
             "subs_native_language": "",
             "subs_native_language_code": "",
+            "onclick_dict": "",
+            "popup_dict": "",
+            "onclick_options": {},
+            "popup_options": {},
         }
         self.config = {key: value for key, value in self.default.items()}
+        self.currentPreset = "Default"
 
-    def load(self):
         if os.path.isfile(self.configPath):
             with open(self.configPath) as f:
-                data = json.load(f)
-            for key, value in data.items():
-                self.config[key] = value
+                self._raw_config = json.load(f)
+            # Test for old schema before preset feature was added
+            if "default_preset" in self._raw_config:
+                presets_set = set(self._raw_config["presets"].keys())
+                presets_set.discard("default_preset")
+                self.presets = list(presets_set)
+            else:
+                self.presets = ["Default"]
+                self._raw_config = {"presets": {"Default": self.config}}
 
-    def save(self):
+    def load(self, preset: str):
+        self.config = {}
+        for key, value in self._raw_config["presets"].get(preset, {}).items():
+            self.config[key] = value
+        self.currentPreset = preset
+
+    def save(self, preset: str):
+        self._raw_config["presets"][preset] = self.config
+        self._raw_config["default_preset"] = preset
         with open(self.configPath, "w") as f:
-            json.dump(self.config, f)
+            json.dump(self._raw_config, f)
+
+    def addNewPreset(self, preset: str):
+        if preset not in self._raw_config["presets"]:
+            self._raw_config["presets"][preset] = self.default
+            self.presets.append(preset)
+
+    def getDefaultPreset(self):
+        return self._raw_config.get("default_preset", "Default")
 
     def getSettings(self):
         return self.config
@@ -560,12 +587,6 @@ class ConfigManager:
         if "mapping" not in self.config or model not in self.config["mapping"]:
             return {}
         return self.config["mapping"][model]
-
-    def get(self, key: str, default: Any = None) -> Any:
-        return self.config.get(key, default)
-
-    def set(self, key: str, value: Any) -> None:
-        self.config[key] = value
 
 
 # Fix for ... cannot be converted to PyQt5.QtCore.QObject in this context
@@ -763,7 +784,9 @@ class AnkiHelper(QObject):
             argv += ["--sub=%s" % sub]
             argv += ["--sub-visibility=yes"]
             argv += ["--sub-delay=%f" % self.subsManager.sub_delay]
-            argv += ["--audio-delay=%f" % float(self.mpvManager.get_property("audio-delay"))]
+            argv += [
+                "--audio-delay=%f" % float(self.mpvManager.get_property("audio-delay"))
+            ]
             argv += ["--frames=1"]
             argv += [
                 "--vf-add=lavfi-scale=%s:%s"
@@ -864,7 +887,9 @@ class AnkiHelper(QObject):
             ]
             argv += ["--sub=no"]
             argv += ["--aid=%d" % aid]
-            argv += ["--audio-delay=%f" % float(self.mpvManager.get_property("audio-delay"))]
+            argv += [
+                "--audio-delay=%f" % float(self.mpvManager.get_property("audio-delay"))
+            ]
             argv += [
                 "--af=afade=t=in:st=%s:d=%s,afade=t=out:st=%s:d=%s"
                 % (sub_start, 0.25, sub_end - 0.25, 0.25)
@@ -1286,6 +1311,28 @@ class MainWindow(QDialog):
 
         vbox = QVBoxLayout()
 
+        # Presets
+        presetsGroup = QGroupBox("Presets")
+
+        self.newPresetButton = QPushButton("New")
+        self.newPresetButton.clicked.connect(self.onNewPreset)
+        self.presetCombo = QComboBox()
+        default_preset = self.configManager.getDefaultPreset()
+        for preset in self.configManager.presets:
+            self.presetCombo.addItem(preset)
+            if preset == default_preset:
+                self.presetCombo.setCurrentText(preset)
+        self.presetCombo.currentIndexChanged.connect(self.onPresetChanged)
+        self.configManager.load(self.presetCombo.currentText())
+        self.settings = self.configManager.getSettings()
+        grid = QGridLayout()
+        grid.addWidget(QLabel("Preset:"), 0, 0)
+        grid.addWidget(self.presetCombo, 0, 1)
+        grid.addWidget(self.newPresetButton, 0, 2)
+
+        presetsGroup.setLayout(grid)
+        vbox.addWidget(presetsGroup)
+
         # Import Options
 
         importGroup = QGroupBox("Import Options")
@@ -1424,7 +1471,7 @@ class MainWindow(QDialog):
             [dictionary.name for dictionary in self.onclick_dicts]
         )
         for i, dictionary in enumerate(self.onclick_dicts):
-            if dictionary.name == self.configManager.get("onclick_dict"):
+            if dictionary.name == self.settings.get("onclick_dict"):
                 self.onClickDict.setCurrentIndex(i)
 
         popupDictGroup = QGroupBox("Pop-up Dictionary")
@@ -1444,7 +1491,7 @@ class MainWindow(QDialog):
         ]
         self.popupDict.addItems([dictionary.name for dictionary in self.popup_dicts])
         for i, dictionary in enumerate(self.popup_dicts):
-            if dictionary.name == self.configManager.get("popup_dict"):
+            if dictionary.name == self.settings.get("popup_dict"):
                 self.popupDict.setCurrentIndex(i)
 
         # Go!
@@ -1468,18 +1515,64 @@ class MainWindow(QDialog):
 
         # vbox.setSizeConstraint(QLayout.SetFixedSize)
 
-    def onClickDictChanged(self, index: int) -> None:
-        dictionary = self.onclick_dicts[index](
-            self.configManager.get("onclick_options", {})
+    def onPresetChanged(self):
+        self.configManager.save(self.configManager.currentPreset)
+        self.configManager.load(self.presetCombo.currentText())
+        self.settings = self.configManager.getSettings()
+
+        if mw.col.models.byName(self.settings["default_model"]):
+            self.modelButton.setText(self.settings["default_model"])
+        else:
+            self.modelButton.setText(mw.col.models.current()["name"])
+        self.deckButton.setText(self.settings["default_deck"])
+        self.useMPV.setChecked(self.settings["use_mpv"])
+        self.audio_ext.setText(self.settings["audio_ext"])
+        self.imageWidth.setValue(self.settings["image_width"])
+        self.imageHeight.setValue(self.settings["image_height"])
+        self.videoWidth.setValue(self.settings["video_width"])
+        self.videoHeight.setValue(self.settings["video_height"])
+        self.padStart.setValue(self.settings["pad_start"])
+        self.padEnd.setValue(self.settings["pad_end"])
+        self.subsTargetLang.setCurrentIndex(
+            self.subsTargetLang.findText(self.settings["subs_target_language"])
         )
+        self.subsNativeLang.setCurrentIndex(
+            self.subsNativeLang.findText(self.settings["subs_native_language"])
+        )
+        self.subsTargetLC.setText(self.settings["subs_target_language_code"])
+        self.subsNativeLC.setText(self.settings["subs_native_language_code"])
+        for i, dictionary in enumerate(self.onclick_dicts):
+            if dictionary.name == self.settings.get("onclick_dict", None):
+                self.onClickDict.setCurrentIndex(i)
+
+        self.configManager.onClickDict.widget.update_options(
+            self.settings["onclick_options"]
+        )
+        for i, dictionary in enumerate(self.popup_dicts):
+            if dictionary.name == self.settings.get("popup_dict"):
+                self.popupDict.setCurrentIndex(i)
+        self.configManager.popupDict.widget.update_options(
+            self.settings["popup_options"]
+        )
+
+    def onNewPreset(self):
+        preset = getOnlyText("Preset name:")
+        if not preset:
+            return
+        self.configManager.addNewPreset(preset)
+        self.presetCombo.clear()
+        for preset in self.configManager.presets:
+            self.presetCombo.addItem(preset)
+        self.presetCombo.setCurrentText(preset)
+
+    def onClickDictChanged(self, index: int) -> None:
+        dictionary = self.onclick_dicts[index](self.settings.get("onclick_options", {}))
         layout = self.onClickDictSpecificGroup.layout()
         layout.replaceWidget(layout.itemAt(0).widget(), dictionary.widget)
         self.configManager.onClickDict = dictionary
 
     def onPopupDictChanged(self, index: int) -> None:
-        dictionary = self.popup_dicts[index](
-            self.configManager.get("popup_options", {})
-        )
+        dictionary = self.popup_dicts[index](self.settings.get("popup_options", {}))
         layout = self.popupDictSpecificGroup.layout()
         layout.replaceWidget(layout.itemAt(0).widget(), dictionary.widget)
         # FIXME: pop-up dict has nothing to do with the config manager - store it somewhere else!
@@ -1516,7 +1609,7 @@ class MainWindow(QDialog):
         self.settings["subs_native_language"] = self.subsNativeLang.currentText()
         self.settings["subs_native_language_code"] = self.subsNativeLC.text()
 
-        self.configManager.save()
+        self.configManager.save(self.presetCombo.currentText())
 
     def reject(self):
         self.saveSettings()
@@ -1561,21 +1654,16 @@ class MainWindow(QDialog):
     def start(self):
         if self.configManager.popupDict:
             popup_options = self.configManager.popupDict.collect_widget_settings()
+            self.settings["popup_dict"] = self.configManager.popupDict.name
             if popup_options:
-                self.configManager.set("popup_dict", self.configManager.popupDict.name)
-                self.configManager.set("popup_options", popup_options)
+                self.settings["popup_options"] = popup_options
             else:
                 self.configManager.popupDict = None
         if self.configManager.onClickDict:
             onclick_options = self.configManager.onClickDict.collect_widget_settings()
+            self.settings["onclick_dict"] = self.configManager.onClickDict.name
             if onclick_options:
-                self.configManager.set(
-                    "onclick_dict", self.configManager.onClickDict.name
-                )
-                self.configManager.set(
-                    "onclick_options",
-                    onclick_options,
-                )
+                self.settings["onclick_options"] = onclick_options
             else:
                 self.configManager.onClickDict = None
         self.saveSettings()
