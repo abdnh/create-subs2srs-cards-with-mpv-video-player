@@ -1209,7 +1209,7 @@ class FieldMapping(QDialog):
 
 class MainWindow(QDialog):
     def __init__(self, configManager: ConfigManager, parent=None):
-        QDialog.__init__(self, parent)
+        QDialog.__init__(self, parent, Qt.WindowType.Window)
         self.configManager = configManager
         self.settings = self.configManager.getSettings()
         self.subsLC = {lang: lc.lower()[:2] for lang, lc in langs}
