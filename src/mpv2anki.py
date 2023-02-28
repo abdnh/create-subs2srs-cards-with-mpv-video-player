@@ -1097,8 +1097,10 @@ class AnkiHelper(QObject):
                 noteFields["Video Subtitles"] = "[sound:%s]" % subtitles
 
         for k, v in fieldsMap.items():
-            for field in v:
-                note[field] = noteFields[k]
+            val = noteFields.get(k, None)
+            if val:
+                for field in v:
+                    note[field] = val
 
         ret = note.dupeOrEmpty()
         if ret == 2:
