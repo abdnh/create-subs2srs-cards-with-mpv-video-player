@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Fixed some subs of online videos not being made available.
 -   Fixed error when some mapped dictionary fields have no content to fill in.
+-   Take A/V sync into account for created media
 
 ## [0.1.2] - 2023-02-14
 
