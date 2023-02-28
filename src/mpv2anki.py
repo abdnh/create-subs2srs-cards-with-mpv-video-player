@@ -590,8 +590,21 @@ class MPVMonitor(MPVInterSubs):
         self.mpvConf = mpvConf
         self.msgHandler = msgHandler
 
-        sub_langs = list(filter(None, [self.subsManager.settings["subs_native_language_code"], self.subsManager.settings["subs_target_language_code"]]))
-        self.default_argv += ["""--ytdl-raw-options=sub-lang="%s",write-sub=,write-auto-sub=""" % ",".join(sub_langs)]
+        ytdl_opts = "--ytdl-raw-options=write-sub=,write-auto-sub="
+        if any("youtube.com" in l for l in fileUrls):
+            # Download only native and target languages' auto-generated subs for YouTube
+            sub_langs = list(
+                filter(
+                    None,
+                    [
+                        self.subsManager.settings["subs_native_language_code"],
+                        self.subsManager.settings["subs_target_language_code"],
+                    ],
+                )
+            )
+            ytdl_opts += f',sub-lang="%s"' % ",".join(sub_langs)
+        self.default_argv += [ytdl_opts]
+
         super().__init__()
         # super().__init__(window_id=None, debug=False)
 
@@ -1542,15 +1555,15 @@ class MainWindow(QDialog):
             popup_options = self.configManager.popupDict.collect_widget_settings()
             if popup_options:
                 self.configManager.set("popup_dict", self.configManager.popupDict.name)
-                self.configManager.set(
-                    "popup_options", popup_options
-                )
+                self.configManager.set("popup_options", popup_options)
             else:
                 self.configManager.popupDict = None
         if self.configManager.onClickDict:
             onclick_options = self.configManager.onClickDict.collect_widget_settings()
             if onclick_options:
-                self.configManager.set("onclick_dict", self.configManager.onClickDict.name)
+                self.configManager.set(
+                    "onclick_dict", self.configManager.onClickDict.name
+                )
                 self.configManager.set(
                     "onclick_options",
                     onclick_options,
