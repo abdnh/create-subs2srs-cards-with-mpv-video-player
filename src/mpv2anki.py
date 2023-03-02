@@ -490,6 +490,7 @@ class ConfigManager:
             "image_height": 320,
             "video_width": -2,
             "video_height": 320,
+            "av_delay": 0,
             "pad_start": 250,
             "pad_end": 250,
             "use_mpv": True,
@@ -696,10 +697,14 @@ class MPVMonitor(MPVInterSubs):
         self.msgHandler.update_file_path.emit(self.filePath)
         if not self.get_property("vo-configured"):
             self.set_property("force-window", "yes")
+
+        audio_delay = self.subsManager.settings["av_delay"]
         # Adjust A/V sync of videos from ERTFLIX automatically to work around an issue reported by one user
         # TODO: Periodically check if this is still required and maybe eventually remove it
         if self.filePath.startswith("https://www.ertflix.gr"):
-            self.set_property("audio-delay", -10.0)
+            audio_delay = -10.0
+        if audio_delay:
+            self.set_property("audio-delay", audio_delay)
 
     def on_shutdown(self, msg=None):
         try:
@@ -1399,6 +1404,17 @@ class MainWindow(QDialog):
             [self.settings["video_width"], self.settings["video_height"]],
             [-2, 10000, 2],
         )
+
+        self.avDelay = avDelay = QDoubleSpinBox()
+        avDelayLabel = QLabel("A/V delay")
+        avDelayLabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        videoGroup.layout().addWidget(avDelayLabel, 2, 0)
+        videoGroup.layout().addWidget(avDelay, 2, 1)
+        videoGroup.layout().addWidget(QLabel("seconds"), 2, 2)
+        avDelay.setRange(-2147483648, 2147483647)
+        avDelay.setSingleStep(1)
+        avDelay.setValue(self.settings["av_delay"])
+
         padGroup, self.padStart, self.padEnd = self.getTwoSpeenBoxesOptionsGroup(
             "Pad Timings",
             ["Start:", "End:", "ms"],
@@ -1536,6 +1552,7 @@ class MainWindow(QDialog):
         self.imageHeight.setValue(self.settings["image_height"])
         self.videoWidth.setValue(self.settings["video_width"])
         self.videoHeight.setValue(self.settings["video_height"])
+        self.avDelay.setValue(self.settings["av_delay"])
         self.padStart.setValue(self.settings["pad_start"])
         self.padEnd.setValue(self.settings["pad_end"])
         self.subsTargetLang.setCurrentIndex(
@@ -1605,6 +1622,7 @@ class MainWindow(QDialog):
         self.settings["image_height"] = self.imageHeight.value()
         self.settings["video_width"] = self.videoWidth.value()
         self.settings["video_height"] = self.videoHeight.value()
+        self.settings["av_delay"] = self.avDelay.value()
         self.settings["pad_start"] = self.padStart.value()
         self.settings["pad_end"] = self.padEnd.value()
         self.settings["audio_ext"] = self.audio_ext.text()
