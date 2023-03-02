@@ -696,6 +696,10 @@ class MPVMonitor(MPVInterSubs):
         self.msgHandler.update_file_path.emit(self.filePath)
         if not self.get_property("vo-configured"):
             self.set_property("force-window", "yes")
+        # Adjust A/V sync of videos from ERTFLIX automatically to work around an issue reported by one user
+        # TODO: Periodically check if this is still required and maybe eventually remove it
+        if self.filePath.startswith("https://www.ertflix.gr"):
+            self.set_property("audio-delay", -10.0)
 
     def on_shutdown(self, msg=None):
         try:
