@@ -775,7 +775,7 @@ class AnkiHelper(QObject):
         )
         imagePath = os.path.join(mw.col.media.dir(), image)
         if not self.settings["use_mpv"] and ffmpeg_executable and sub == "no":
-            argv = ["ffmpeg"]
+            argv = ["ffmpeg", "-y"]
             argv += ["-ss", secondsToTimestamp(timePos)]
             argv += ["-i", self.filePath]
             argv += ["-vframes", "1"]
@@ -811,7 +811,7 @@ class AnkiHelper(QObject):
         )
         audioPath = os.path.join(mw.col.media.dir(), audio)
         if not self.settings["use_mpv"] and ffmpeg_executable:
-            argv = ["ffmpeg"]
+            argv = ["ffmpeg", "-y"]
             argv += ["-ss", secondsToTimestamp(sub_start)]
             argv += ["-i", self.filePath]
             argv += ["-t", secondsToTimestamp(sub_end - sub_start)]
@@ -859,7 +859,7 @@ class AnkiHelper(QObject):
         video = self.get_video_filename(source, sub_start, sub_end, video_format)
         videoPath = os.path.join(mw.col.media.dir(), video)
         if not self.settings["use_mpv"] and ffmpeg_executable:
-            argv = ["ffmpeg"]
+            argv = ["ffmpeg", "-y"]
             argv += ["-ss", secondsToTimestamp(sub_start)]
             argv += ["-i", self.filePath]
             argv += ["-t", secondsToTimestamp(sub_end - sub_start)]
