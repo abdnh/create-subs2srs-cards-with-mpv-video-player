@@ -633,6 +633,7 @@ class MPVMonitor(MPVInterSubs):
         self.audio_id = "auto"
         self.audio_ffmpeg_id = 0
         self.sub_id = "auto"
+        self.audio_delay = 0.0
 
         self.set_property("include", self.mpvConf)
 
@@ -681,6 +682,9 @@ class MPVMonitor(MPVInterSubs):
 
     def on_property_sub_delay(self, val):
         self.subsManager.sub_delay = round(float(val), 3)
+
+    def on_property_audio_delay(self, val):
+        self.audio_delay = round(float(val), 3)
 
     def on_start_file(self, msg):
         self.filePath = self.get_property("path")
@@ -784,9 +788,7 @@ class AnkiHelper(QObject):
             argv += ["--sub=%s" % sub]
             argv += ["--sub-visibility=yes"]
             argv += ["--sub-delay=%f" % self.subsManager.sub_delay]
-            argv += [
-                "--audio-delay=%f" % float(self.mpvManager.get_property("audio-delay"))
-            ]
+            argv += ["--audio-delay=%f" % self.mpvManager.audio_delay]
             argv += ["--frames=1"]
             argv += [
                 "--vf-add=lavfi-scale=%s:%s"
@@ -825,7 +827,7 @@ class AnkiHelper(QObject):
         else:
             argv = [self.mpvExecutable, self.filePath]
             argv += ["--include=%s" % self.mpvConf]
-            audio_delay = float(self.mpvManager.get_property("audio-delay"))
+            audio_delay = self.mpvManager.audio_delay
             sub_start -= audio_delay
             sub_end -= audio_delay
             argv += [
@@ -887,11 +889,10 @@ class AnkiHelper(QObject):
             ]
             argv += ["--sub=no"]
             argv += ["--aid=%d" % aid]
+            # FIXME: audio-delay can cause muteness for the duration of the vido, especially in output mode
+            argv += ["--audio-delay=%s" % self.mpvManager.audio_delay]
             argv += [
-                "--audio-delay=%f" % float(self.mpvManager.get_property("audio-delay"))
-            ]
-            argv += [
-                "--af=afade=t=in:st=%s:d=%s,afade=t=out:st=%s:d=%s"
+                "--af-add=afade=t=in:st=%s:d=%s,afade=t=out:st=%s:d=%s"
                 % (sub_start, 0.25, sub_end - 0.25, 0.25)
             ]
             argv += [
