@@ -62,11 +62,12 @@ from aqt.utils import getFile, getOnlyText, showText, showWarning
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "vendor"))
 
+from intersubs.mpv import MPVCommandError
+
 from . import icons_rc, onclick, popup
 from .onclick import OnClickDictionary
 from .popup import PopupDictionary
 from .popup.intersubs_handler import InterSubsHandler
-from intersubs.mpv import MPVCommandError
 
 try:
     from aqt.sound import _packagedCmd
@@ -523,6 +524,8 @@ class ConfigManager:
         self.config = {}
         for key, value in self._raw_config["presets"].get(preset, {}).items():
             self.config[key] = value
+        for key, value in self.default.items():
+            self.config.setdefault(key, value)
         self.currentPreset = preset
 
     def save(self, preset: str):
