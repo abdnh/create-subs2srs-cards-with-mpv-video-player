@@ -616,7 +616,7 @@ class MPVMonitor(MPVInterSubs):
         self.mpvConf = mpvConf
         self.msgHandler = msgHandler
 
-        ytdl_opts = "--ytdl-raw-options=write-sub=,write-auto-sub="
+        ytdl_opts = '--ytdl-raw-options=write-sub=,write-auto-sub=,sub-format="ass/srt/vtt/best"'
         if any("youtube.com" in l for l in fileUrls):
             # Download only native and target languages' auto-generated subs for YouTube
             sub_langs = list(
