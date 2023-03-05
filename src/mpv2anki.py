@@ -511,14 +511,14 @@ class ConfigManager:
         if os.path.isfile(self.configPath):
             with open(self.configPath) as f:
                 self._raw_config = json.load(f)
-            # Test for old schema before preset feature was added
-            if "default_preset" in self._raw_config:
-                presets_set = set(self._raw_config["presets"].keys())
-                presets_set.discard("default_preset")
-                self.presets = list(presets_set)
-            else:
-                self.presets = ["Default"]
-                self._raw_config = {"presets": {"Default": self.config}}
+        # Test for old schema before preset feature was added
+        if "default_preset" in self._raw_config:
+            presets_set = set(self._raw_config["presets"].keys())
+            presets_set.discard("default_preset")
+            self.presets = list(presets_set)
+        else:
+            self.presets = ["Default"]
+            self._raw_config = {"presets": {"Default": self.config}}
 
     def load(self, preset: str):
         self.config = {}
