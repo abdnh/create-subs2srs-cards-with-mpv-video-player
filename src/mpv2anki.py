@@ -1564,16 +1564,17 @@ class MainWindow(QDialog):
         for i, dictionary in enumerate(self.onclick_dicts):
             if dictionary.name == self.settings.get("onclick_dict", None):
                 self.onClickDict.setCurrentIndex(i)
-
-        self.configManager.onClickDict.widget.update_options(
-            self.settings["onclick_options"]
-        )
+        if self.configManager.onClickDict:
+            self.configManager.onClickDict.widget.update_options(
+                self.settings["onclick_options"]
+            )
         for i, dictionary in enumerate(self.popup_dicts):
             if dictionary.name == self.settings.get("popup_dict"):
                 self.popupDict.setCurrentIndex(i)
-        self.configManager.popupDict.widget.update_options(
-            self.settings["popup_options"]
-        )
+        if self.configManager.popupDict:
+            self.configManager.popupDict.widget.update_options(
+                self.settings["popup_options"]
+            )
 
     def onNewPreset(self):
         preset = getOnlyText("Preset name:")
