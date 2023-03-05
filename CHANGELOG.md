@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   Fixed error when some mapped dictionary fields have no content to fill in.
 -   Take A/V sync into account for created media
 -   Fixed dictionary settings not being saved
+-   Adjust A/V sync of videos from ERTFLIX to -10 automatically to work around an issue reported by one user. If you notice this causes problems for some videos, please let me know.
 
 ## [0.1.2] - 2023-02-14
 
