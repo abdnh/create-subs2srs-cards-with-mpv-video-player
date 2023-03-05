@@ -69,11 +69,6 @@ from .onclick import OnClickDictionary
 from .popup import PopupDictionary
 from .popup.intersubs_handler import InterSubsHandler
 
-try:
-    from aqt.sound import _packagedCmd
-except:
-    from anki.sound import _packagedCmd
-
 import pysubs2
 from intersubs.main import run as intersubs_run
 from intersubs.mpv_intersubs import MPVInterSubs
@@ -1720,10 +1715,7 @@ def openVideoWithMPV():
         executable = find_executable("mpv")
 
     os.environ["PATH"] = env["PATH"]
-    mpvPackagedPath, popenPackagedEnv = _packagedCmd(["mpv"])
-    mpvPackagedExecutable = mpvPackagedPath[0]
-
-    if executable is None or (executable == mpvPackagedExecutable):
+    if executable is None:
         if isLin:
             return showWarning(
                 "Please install <a href='https://mpv.io'>mpv</a> and try again.",
