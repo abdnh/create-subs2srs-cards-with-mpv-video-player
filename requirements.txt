@@ -1,2 +1,2 @@
-intersubs @ git+https://github.com/abdnh/intersubs@45815cddaf20fe8f725ea9aa5b16d5af8416c37c
+intersubs @ git+https://github.com/abdnh/intersubs@2f387ee4948f81fdea5ef991fefe4c7a3a8abd9a
 pysubs2==1.6.0

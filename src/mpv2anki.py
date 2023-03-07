@@ -495,6 +495,7 @@ class ConfigManager:
             "subs_target_language_code": "en",
             "subs_native_language": "",
             "subs_native_language_code": "",
+            "alt_dict_keys": False,
             "onclick_dict": "",
             "popup_dict": "",
             "onclick_options": {},
@@ -645,7 +646,12 @@ class MPVMonitor(MPVInterSubs):
             handler = popupDict.intersubs_handler_class(self, popupDict)
         else:
             handler = InterSubsHandler(self, None)
-        intersubs_run(fileUrls, app=mw.app, mpv=self, handler=handler)
+        intersubs_settings = {
+            "alternative_triggers": self.subsManager.settings["alt_dict_keys"]
+        }
+        intersubs_run(
+            fileUrls, app=mw.app, mpv=self, handler=handler, settings=intersubs_settings
+        )
 
     def on_property_term_status_msg(self, statusMsg=None):
         m = re.match(
@@ -1469,18 +1475,29 @@ class MainWindow(QDialog):
         subsGroup.setLayout(grid3)
         grid.addWidget(subsGroup, 3, 0, 1, 5)
 
-        onClickDictGroup = QGroupBox("On-click Dictionary")
+        dictGroup = QGroupBox("Dictionary")
         grid4 = QGridLayout()
-        grid4.addWidget(QLabel("Dictionary"), 0, 0)
+        self.altDictKeys = QCheckBox("Alternative dictionary hotkeys")
+        self.altDictKeys.setChecked(self.settings["alt_dict_keys"])
+        self.altDictKeys.setToolTip(
+            "If checked, the pop-up dictionary will be triggered on click, while the on-click one will be triggered on a double click"
+        )
+        grid4.addWidget(self.altDictKeys)
+        dictGroup.setLayout(grid4)
+        grid.addWidget(dictGroup, 4, 0, 1, 5)
+
+        onClickDictGroup = QGroupBox("On-click Dictionary")
+        grid5 = QGridLayout()
+        grid5.addWidget(QLabel("Dictionary"), 0, 0)
         self.onClickDict = QComboBox()
         qconnect(self.onClickDict.currentIndexChanged, self.onClickDictChanged)
-        grid4.addWidget(self.onClickDict, 0, 1, 1, 4)
+        grid5.addWidget(self.onClickDict, 0, 1, 1, 4)
         self.onClickDictSpecificGroup = QGroupBox("Settings")
         self.onClickDictSpecificGroup.setLayout(QVBoxLayout())
         self.onClickDictSpecificGroup.layout().addWidget(QWidget())
-        grid4.addWidget(self.onClickDictSpecificGroup, 1, 0, 1, 5)
-        onClickDictGroup.setLayout(grid4)
-        grid.addWidget(onClickDictGroup, 4, 0, 1, 5)
+        grid5.addWidget(self.onClickDictSpecificGroup, 1, 0, 1, 5)
+        onClickDictGroup.setLayout(grid5)
+        grid.addWidget(onClickDictGroup, 5, 0, 1, 5)
         self.onclick_dicts = [
             dictionary
             for dictionary in onclick.dictionaries
@@ -1494,17 +1511,17 @@ class MainWindow(QDialog):
                 self.onClickDict.setCurrentIndex(i)
 
         popupDictGroup = QGroupBox("Pop-up Dictionary")
-        grid5 = QGridLayout()
-        grid5.addWidget(QLabel("Dictionary"), 0, 0)
+        grid6 = QGridLayout()
+        grid6.addWidget(QLabel("Dictionary"), 0, 0)
         self.popupDict = QComboBox()
         qconnect(self.popupDict.currentIndexChanged, self.onPopupDictChanged)
-        grid5.addWidget(self.popupDict, 0, 1, 1, 4)
+        grid6.addWidget(self.popupDict, 0, 1, 1, 4)
         self.popupDictSpecificGroup = QGroupBox("Settings")
         self.popupDictSpecificGroup.setLayout(QVBoxLayout())
         self.popupDictSpecificGroup.layout().addWidget(QWidget())
-        grid5.addWidget(self.popupDictSpecificGroup, 1, 0, 1, 5)
-        popupDictGroup.setLayout(grid5)
-        grid.addWidget(popupDictGroup, 5, 0, 1, 5)
+        grid6.addWidget(self.popupDictSpecificGroup, 1, 0, 1, 5)
+        popupDictGroup.setLayout(grid6)
+        grid.addWidget(popupDictGroup, 6, 0, 1, 5)
         self.popup_dicts = [
             dictionary for dictionary in popup.dictionaries if dictionary.is_available()
         ]
@@ -1637,6 +1654,7 @@ class MainWindow(QDialog):
         self.settings["subs_target_language_code"] = self.subsTargetLC.text()
         self.settings["subs_native_language"] = self.subsNativeLang.currentText()
         self.settings["subs_native_language_code"] = self.subsNativeLC.text()
+        self.settings["alt_dict_keys"] = self.altDictKeys.isChecked()
 
         self.configManager.save(self.presetCombo.currentText())
 

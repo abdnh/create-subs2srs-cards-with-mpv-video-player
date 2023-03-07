@@ -12,7 +12,7 @@ $(PACKAGE_NAME).ankiaddon: src/*
 
 vendor:
 	pip install pysubs2==1.6.0 -U -t src/vendor
-	pip install git+https://github.com/abdnh/intersubs@45815cddaf20fe8f725ea9aa5b16d5af8416c37c -U --no-deps -t src/vendor
+	pip install git+https://github.com/abdnh/intersubs@2f387ee4948f81fdea5ef991fefe4c7a3a8abd9a -U --no-deps -t src/vendor
 
 fix:
 	python -m black src --exclude="vendor"
