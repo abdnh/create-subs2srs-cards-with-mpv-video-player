@@ -1528,11 +1528,18 @@ class MainWindow(QDialog):
         hbox.addWidget(self.openFileButton)
         vbox.addLayout(hbox)
 
-        self.setLayout(vbox)
+        viewport = QWidget(self)
+        viewport.setLayout(vbox)
+        scrollArea = QScrollArea(self)
+        scrollArea.setWidget(viewport)
+        scrollArea.setWidgetResizable(True)
+        mainLayout = QVBoxLayout()
+        mainLayout.addWidget(scrollArea)
+        self.setLayout(mainLayout)
 
         self.setWindowIcon(QIcon(":/icons/anki.png"))
 
-        # vbox.setSizeConstraint(QLayout.SetFixedSize)
+        self.setWindowState(Qt.WindowState.WindowMaximized)
 
     def onPresetChanged(self):
         self.configManager.save(self.configManager.currentPreset)
