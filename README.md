@@ -4,7 +4,7 @@ Please read the original add-on's description for an introduction. This document
 
 ![The add-on's dialog](./images/dialog.png)
 
-Additional features are the following:
+The main additional features are the following:
 
 - A pop-up dictionary to look up subtitle words in any supported dictionary. Provided by [InterSubs](https://github.com/abdnh/intersubs).
 - The ability to add notes by clicking on any subtitle word instead of the usual keyboard shortcut, with the added bonus that you can configure any supported dictionary to automatically fill in certain fields of the note with the word's definitions, example sentences, etc.

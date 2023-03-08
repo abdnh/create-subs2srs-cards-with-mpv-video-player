@@ -5,13 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.1]
+## [0.3.0] - 2023-03-08
+
+### Added
+
+    - Support alternative triggers for the dictionaries where the pop-up dictionary is triggered by a click and the on-click one with a double click.
+
+### Changed
+
+-   Allow the mpv copy packaged with Anki to be used with the add-on.
+
+### Fixed
+
+-   Fixed an error when no dictionary is configured.
+-   Fixed some widgets disappearing when the window is maximized and show a scrollbar
+
+## [0.2.1] - 2023-03-05
 
 ### Fixed
 
 -   Fix config error on first run.
 
-## [0.2.0]
+## [0.2.0] - 2023-03-03
 
 ### Added
 
@@ -50,7 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[unreleased]: https://github.com/abdnh/create-subs2srs-cards-with-mpv-video-player/compare/0.2.0...HEAD
+[0.2.1]: https://github.com/abdnh/create-subs2srs-cards-with-mpv-video-player/compare/0.2.1...0.3.0
 [0.2.1]: https://github.com/abdnh/create-subs2srs-cards-with-mpv-video-player/compare/0.2.0...0.2.1
 [0.2.0]: https://github.com/abdnh/create-subs2srs-cards-with-mpv-video-player/compare/0.1.2...0.2.0
 [0.1.2]: https://github.com/abdnh/create-subs2srs-cards-with-mpv-video-player/compare/0.1.1...0.1.2
