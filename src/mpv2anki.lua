@@ -133,6 +133,23 @@ function create_anki_card(word)
     reset_timestamps("no-osd")
 end
 
+function onclick()
+    local mouse_pos = mp.get_property_native('mouse-pos')
+    local osd_width = mp.get_property_number('osd-width')
+    local osd_height = mp.get_property_number('osd-height')
+    local pos = mouse_pos["x"] / osd_width
+    if osd_height - mouse_pos["y"] <= 90 then
+        return
+    end
+    if pos <= 0.33 then
+        mp.commandv("sub-seek", -1)
+    elseif pos >= 0.66 then
+        mp.commandv("sub-seek", 1)
+    else
+        mp.set_property_bool("pause", not mp.get_property_bool("pause"))
+    end
+end
+
 function reset_property()
     mp.set_property("term-status-msg", "")
 end
@@ -147,4 +164,5 @@ mp.add_key_binding("ctrl+w", "replay-the-first-seconds", replay_the_first_second
 mp.add_key_binding("ctrl+e", "replay-the-last-seconds", replay_the_last_seconds)
 mp.add_key_binding("ctrl+r", "reset-timestamps", reset_timestamps)
 mp.add_key_binding("b", "create-anki-card", create_anki_card)
+-- mp.add_key_binding("MBTN_LEFT", "on-click", onclick)
 mp.register_script_message("create-anki-word-card", create_anki_card)
