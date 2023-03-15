@@ -703,10 +703,6 @@ class MPVMonitor(MPVInterSubs):
             self.set_property("force-window", "yes")
 
         audio_delay = self.subsManager.settings["av_delay"]
-        # Adjust A/V sync of videos from ERTFLIX automatically to work around an issue reported by one user
-        # TODO: Periodically check if this is still required and maybe eventually remove it
-        if self.filePath.startswith("https://www.ertflix.gr"):
-            audio_delay = -10.0
         if audio_delay:
             self.set_property("audio-delay", audio_delay)
 
