@@ -3,7 +3,7 @@
 """
 Anki Add-on: mpv2anki
 
-Add new option ("Open Video...") in the Tools menu to open video with MPV (https://mpv.io) 
+Add new option ("Open Video...") in the Tools menu to open video with MPV (https://mpv.io)
 and create subs2srs-like cards.
 
 Default Fields:
@@ -25,12 +25,12 @@ If some of the fields aren't necessary, they can be removed from the note type.
 Usage Notes:
     - Open a video file via "Open Video..." option (Ctrl+O) in the Tools menu.
     - Press "b" to create an Anki card.
-    
+
 Nickolay <kelciour@gmail.com>
 """
 
-from __future__ import annotations
 
+from typing import Any, Dict, List, Literal, Optional, Tuple, cast
 
 __version__ = "1.0.0-alpha3"
 
@@ -46,28 +46,24 @@ from hashlib import sha1
 from os.path import expanduser
 
 from anki.hooks import addHook
-from anki.lang import _, langs
+from anki.lang import langs
 from anki.utils import is_lin, is_mac, is_win
-
 from aqt import mw
-
 from aqt.qt import *
 from aqt.studydeck import StudyDeck
-
 from aqt.utils import getOnlyText, showText, showWarning
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "vendor"))
 
+import pysubs2
+from intersubs.main import run as intersubs_run
 from intersubs.mpv import MPVCommandError
+from intersubs.mpv_intersubs import MPVInterSubs
 
 from . import onclick, popup
 from .onclick import OnClickDictionary
 from .popup import PopupDictionary
 from .popup.intersubs_handler import InterSubsHandler
-
-import pysubs2
-from intersubs.main import run as intersubs_run
-from intersubs.mpv_intersubs import MPVInterSubs
 
 if is_mac and "/usr/local/bin" not in os.environ["PATH"]:
     # https://docs.brew.sh/FAQ#my-mac-apps-dont-find-usrlocalbin-utilities
@@ -79,22 +75,22 @@ langs = [(lang, lc) for lang, lc in langs if not lang.startswith("English")]
 langs = sorted(langs + [("English", "en")])
 
 
-def getTimeParts(seconds):
+def getTimeParts(seconds: float) -> Tuple[float, float, float, float]:
     mins, secs = divmod(seconds, 60)
     hours, mins = divmod(mins, 60)
     millisecs = int(seconds * 1000) % 1000
     return (hours, mins, secs, millisecs)
 
 
-def secondsToTimestamp(seconds):
+def secondsToTimestamp(seconds: float) -> str:
     return "%02d:%02d:%02d.%03d" % getTimeParts(seconds)
 
 
-def secondsToFilename(seconds):
+def secondsToFilename(seconds: float) -> str:
     return secondsToTimestamp(seconds).replace(":", ".")
 
 
-def getVideoFile():
+def getVideoFile() -> List[QUrl]:
     key = "Media (*.avi *.mkv *.mp4 *.mov *.mpg *.mpeg *.webm *.m4a *.mp3 *.wav);;All Files (*.*)"
     dirkey = "1213145732" + "Directory"
     dirname = mw.pm.profile.get(dirkey, expanduser("~"))
@@ -102,7 +98,9 @@ def getVideoFile():
         directory = dirname
     else:
         directory = QUrl.fromLocalFile(dirname)
-    urls = QFileDialog.getOpenFileUrls(None, "Open Video File or URL", directory=directory, filter=key)[0]
+    urls = QFileDialog.getOpenFileUrls(
+        None, "Open Video File or URL", directory=directory, filter=key
+    )[0]
     if urls and urls[0].isLocalFile():
         filePath = urls[0].toLocalFile()
         dirname = os.path.dirname(filePath)
@@ -110,7 +108,7 @@ def getVideoFile():
     return urls
 
 
-def srt_time_to_seconds(time):
+def srt_time_to_seconds(time: str) -> float:
     split_time = time.split(",")
     major, minor = (split_time[0].split(":"), split_time[1])
     return (
@@ -118,14 +116,14 @@ def srt_time_to_seconds(time):
     )
 
 
-def seconds_to_srt_time(time):
+def seconds_to_srt_time(time: float) -> str:
     return "%02d:%02d:%02d,%03d" % getTimeParts(time)
 
 
 srt_encodings = ["utf-8", "cp1251"]
 
 
-def fix_glob_square_brackets(glob_pattern):
+def fix_glob_square_brackets(glob_pattern: str) -> str:
     # replace the left square bracket with [[]
     glob_pattern = re.sub(r"\[", "[[]", glob_pattern)
     # replace the right square bracket with []] but be careful not to replace
@@ -136,12 +134,13 @@ def fix_glob_square_brackets(glob_pattern):
 
 
 class SubtitlesHelper:
-    def __init__(self, configManager):
+    def __init__(self, configManager: "ConfigManager"):
         self.settings = configManager.getSettings()
+        self.sub_delay = 0.0
 
     sub_exts = [".srt", ".ass", ".vtt"]
 
-    def init(self, filePath):
+    def init(self, filePath: str) -> None:
         self.filePath = filePath
         self.subsPath = None
         self.translationsPath = None
@@ -180,7 +179,7 @@ class SubtitlesHelper:
         if len(self.translations) != 0:
             self.sync_subtitles()
 
-    def find_subtitles(self, subs_base_path, lang=""):
+    def find_subtitles(self, subs_base_path: str, lang: str = "") -> List[str]:
         subs_list = []
         for ext in self.sub_exts:
             subs_filepattern = subs_base_path + "*" + lang + "*" + ext
@@ -188,7 +187,7 @@ class SubtitlesHelper:
             subs_list.extend(glob.glob(subs_filepattern))
         return subs_list
 
-    def guess_encoding(self, file_content):
+    def guess_encoding(self, file_content: bytes) -> Tuple[bool, str]:
         for enc in srt_encodings:
             try:
                 content = file_content.decode(enc)
@@ -197,17 +196,17 @@ class SubtitlesHelper:
                 pass
         return (False, None)
 
-    def read_subtitles(self, subsPath):
-        content = open(subsPath, "rb").read()
-        if content[:3] == b"\xef\xbb\xbf":  # with bom
-            content = content[3:]
+    def read_subtitles(self, subsPath: str) -> List[Tuple[float, float, str]]:
+        with open(subsPath, "rb") as file:
+            content = file.read()
+            if content[:3] == b"\xef\xbb\xbf":  # with bom
+                content = content[3:]
 
-        ret_code, enc = self.guess_encoding(content)
-        if ret_code == False:
-            showWarning(
-                "Can't decode subtitles. Please convert subtitles to UTF-8 encoding."
-            )
-            pass
+            ret_code, enc = self.guess_encoding(content)
+            if not ret_code:
+                showWarning(
+                    "Can't decode subtitles. Please convert subtitles to UTF-8 encoding."
+                )
 
         try:
             subs = pysubs2.load(subsPath, encoding=enc)
@@ -240,15 +239,15 @@ class SubtitlesHelper:
 
         return subs
 
-    def remove_tags(self, sub):
+    def remove_tags(self, sub: str) -> str:
         sub = re.sub(r"<[^>]+>", "", sub)
         sub = re.sub(r"  +", " ", sub)
         sub = sub.strip()
 
         return sub
 
-    def convert_into_sentences(self):
-        subs = []
+    def convert_into_sentences(self) -> None:
+        subs: List[Tuple[float, float, str]] = []
 
         for sub in self.subs:
             sub_start = sub[0]
@@ -276,24 +275,25 @@ class SubtitlesHelper:
                         )
                     )
                 ):
-
-                    subs[-1] = [
+                    subs[-1] = (
                         prev_sub_start,
                         sub_end,
                         prev_sub_content + " " + sub_content,
-                    ]
+                    )
                 else:
-                    subs.append([sub_start, sub_end, sub_content])
+                    subs.append((sub_start, sub_end, sub_content))
             else:
-                subs.append([sub_start, sub_end, sub_content])
+                subs.append((sub_start, sub_end, sub_content))
 
         self.subs = subs
 
-    def sync_subtitles(self):
+    def sync_subtitles(self) -> None:
         en_subs = self.subs
         ru_subs = self.translations
 
-        subs = [([], [], []) for i in range(len(en_subs))]
+        subs: List[Tuple[List, List, List]] = [
+            ([], [], []) for i in range(len(en_subs))
+        ]
         for ru_sub in ru_subs:
             ru_sub_start = ru_sub[0]
             ru_sub_end = ru_sub[1]
@@ -327,10 +327,10 @@ class SubtitlesHelper:
                 en_sub_start = self.subs[idx][0]
                 en_sub_end = self.subs[idx][1]
 
-                ru_prev_sub_start = 0
-                ru_prev_sub_end = 0
-                ru_next_sub_start = 0
-                ru_next_sub_end = 0
+                ru_prev_sub_start = 0.0
+                ru_prev_sub_end = 0.0
+                ru_next_sub_start = 0.0
+                ru_next_sub_end = 0.0
 
                 if idx > 0:
                     ru_prev_sub_start = self.translations[idx - 1][0]
@@ -341,51 +341,51 @@ class SubtitlesHelper:
                     ru_next_sub_end = self.translations[idx + 1][1]
 
                 if idx == len(self.subs) - 1:
-                    self.subs[idx - 1] = [
+                    self.subs[idx - 1] = (
                         self.subs[idx - 1][0],
                         self.subs[idx][1],
                         self.subs[idx - 1][2] + " " + self.subs[idx][2],
-                    ]
+                    )
                 elif en_sub_end <= ru_next_sub_start and idx > 0:
-                    self.subs[idx - 1] = [
+                    self.subs[idx - 1] = (
                         self.subs[idx - 1][0],
                         self.subs[idx][1],
                         self.subs[idx - 1][2] + " " + self.subs[idx][2],
-                    ]
+                    )
                 elif (
                     en_sub_start >= ru_next_sub_start or en_sub_start >= ru_prev_sub_end
                 ):
-                    self.subs[idx + 1] = [
+                    self.subs[idx + 1] = (
                         self.subs[idx][0],
                         self.subs[idx + 1][1],
                         self.subs[idx][2] + " " + self.subs[idx + 1][2],
-                    ]
+                    )
                 elif (ru_prev_sub_end - en_sub_start) > (
                     en_sub_end - ru_next_sub_start
                 ) and idx > 0:
-                    self.subs[idx - 1] = [
+                    self.subs[idx - 1] = (
                         self.subs[idx - 1][0],
                         self.subs[idx][1],
                         self.subs[idx - 1][2] + " " + self.subs[idx][2],
-                    ]
+                    )
                 else:
-                    self.subs[idx + 1] = [
+                    self.subs[idx + 1] = (
                         self.subs[idx][0],
                         self.subs[idx + 1][1],
                         self.subs[idx][2] + " " + self.subs[idx + 1][2],
-                    ]
+                    )
 
                 del self.subs[idx]
                 del self.translations[idx]
             else:
                 idx += 1
 
-    def filter_subtitles(self, clip_start, clip_end, pad_start, pad_end):
+    def filter_subtitles(
+        self, clip_start: float, clip_end: float, pad_start: float, pad_end: float
+    ) -> List[Tuple[float, float, str]]:
         subs_filtered = []
 
-        for idx in range(len(self.subs)):
-            sub_start, sub_end, sub_content = self.subs[idx]
-
+        for sub_start, sub_end, sub_content in self.subs:
             if sub_end > (clip_start + pad_start) and sub_start < (clip_end - pad_end):
                 subs_filtered.append(
                     (sub_start - clip_start, sub_end - clip_start, sub_content)
@@ -396,32 +396,40 @@ class SubtitlesHelper:
 
         return subs_filtered
 
-    def write_subtitles(self, clip_start, clip_end, pad_start, pad_end, filename):
+    def write_subtitles(
+        self,
+        clip_start: float,
+        clip_end: float,
+        pad_start: float,
+        pad_end: float,
+        filename: str,
+    ) -> None:
         subs = self.filter_subtitles(
             clip_start - self.sub_delay, clip_end - self.sub_delay, pad_start, pad_end
         )
 
-        f = open(filename, "w", encoding="utf-8")
-        for idx in range(len(subs)):
-            f.write(str(idx + 1) + "\n")
-            f.write(
-                seconds_to_srt_time(subs[idx][0])
-                + " --> "
-                + seconds_to_srt_time(subs[idx][1])
-                + "\n"
-            )
-            f.write(subs[idx][2] + "\n")
-            f.write("\n")
-        f.close()
+        with open(filename, "w", encoding="utf-8") as file:
+            for idx, sub in enumerate(subs):
+                file.write(str(idx + 1) + "\n")
+                file.write(
+                    seconds_to_srt_time(sub[0])
+                    + " --> "
+                    + seconds_to_srt_time(sub[1])
+                    + "\n"
+                )
+                file.write(sub[2] + "\n")
+                file.write("\n")
 
-    def get_subtitle_id(self, time_pos):
+    def get_subtitle_id(self, time_pos: float) -> Optional[int]:
         time_pos = time_pos - self.sub_delay
-        for sub_id in range(len(self.subs)):
-            sub_start, sub_end, sub_content = self.subs[sub_id]
-            if sub_start <= time_pos and time_pos <= sub_end:
+        for sub_id, (sub_start, sub_end, sub_content) in enumerate(self.subs):
+            if sub_start <= time_pos <= sub_end:
                 return sub_id
+        return None
 
-    def get_subtitle(self, sub_id, translation=False):
+    def get_subtitle(
+        self, sub_id: int, translation: bool = False
+    ) -> Tuple[Optional[float], Optional[float], str]:
         if (
             sub_id < 0
             or sub_id > len(self.subs) - 1
@@ -430,22 +438,24 @@ class SubtitlesHelper:
             return (None, None, "")
         if not translation:
             return self.subs[sub_id]
-        else:
-            return self.translations[sub_id]
+        return self.translations[sub_id]
 
-    def get_prev_subtitle(self, sub_id, translation=False):
+    def get_prev_subtitle(
+        self, sub_id: int, translation: bool = False
+    ) -> Tuple[float, float, str]:
         if sub_id <= 0 or (translation is True and len(self.translations) == 0):
             return (self.subs[0][0], self.subs[0][1], "")
         sub_start, sub_end, sub_text = self.subs[sub_id]
         prev_sub_start, prev_sub_end, prev_sub_text = self.subs[sub_id - 1]
         if sub_start - prev_sub_end > 5:
             return (sub_start, sub_end, "")
-        elif not translation:
+        if not translation:
             return self.subs[sub_id - 1]
-        else:
-            return self.translations[sub_id - 1]
+        return self.translations[sub_id - 1]
 
-    def get_next_subtitle(self, sub_id, translation=False):
+    def get_next_subtitle(
+        self, sub_id: int, translation: bool = False
+    ) -> Tuple[float, float, str]:
         if sub_id >= len(self.subs) - 1 or (
             translation is True and len(self.translations) == 0
         ):
@@ -454,25 +464,24 @@ class SubtitlesHelper:
         next_sub_start, next_sub_end, next_sub_text = self.subs[sub_id + 1]
         if next_sub_start - sub_end > 5:
             return (sub_start, sub_end, "")
-        elif not translation:
+        if not translation:
             return self.subs[sub_id + 1]
-        else:
-            return self.translations[sub_id + 1]
+        return self.translations[sub_id + 1]
 
 
 class ConfigManager:
-    def __init__(self):
+    def __init__(self) -> None:
         self.configPath = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "user_files", "config.json"
         )
-        self.onClickDict: OnClickDictionary | None = None
-        self.popupDict: PopupDictionary | None = None
-        self._raw_config = {}
-        self.presets = []
+        self.onClickDict: Optional[OnClickDictionary] = None
+        self.popupDict: Optional[PopupDictionary] = None
+        self._raw_config: Dict[str, Any] = {}
+        self.presets: List[str] = []
         self.currentPreset = ""
         self.init()
 
-    def init(self):
+    def init(self) -> None:
         self.default = {
             "default_model": "mpv2anki",
             "default_deck": "Default",
@@ -495,11 +504,11 @@ class ConfigManager:
             "onclick_options": {},
             "popup_options": {},
         }
-        self.config = {key: value for key, value in self.default.items()}
+        self.config = self.default.copy()
         self.currentPreset = "Default"
 
         if os.path.isfile(self.configPath):
-            with open(self.configPath) as f:
+            with open(self.configPath, encoding="utf-8") as f:
                 self._raw_config = json.load(f)
         # Test for old schema before preset feature was added
         if "default_preset" in self._raw_config:
@@ -510,7 +519,7 @@ class ConfigManager:
             self.presets = ["Default"]
             self._raw_config = {"presets": {"Default": self.config}}
 
-    def load(self, preset: str):
+    def load(self, preset: str) -> None:
         self.config = {}
         for key, value in self._raw_config["presets"].get(preset, {}).items():
             self.config[key] = value
@@ -518,24 +527,24 @@ class ConfigManager:
             self.config.setdefault(key, value)
         self.currentPreset = preset
 
-    def save(self, preset: str):
+    def save(self, preset: str) -> None:
         self._raw_config["presets"][preset] = self.config
         self._raw_config["default_preset"] = preset
-        with open(self.configPath, "w") as f:
+        with open(self.configPath, "w", encoding="utf-8") as f:
             json.dump(self._raw_config, f)
 
-    def addNewPreset(self, preset: str):
+    def addNewPreset(self, preset: str) -> None:
         if preset not in self._raw_config["presets"]:
             self._raw_config["presets"][preset] = self.default
             self.presets.append(preset)
 
-    def getDefaultPreset(self):
+    def getDefaultPreset(self) -> Dict:
         return self._raw_config.get("default_preset", "Default")
 
-    def getSettings(self):
+    def getSettings(self) -> Dict[str, Any]:
         return self.config
 
-    def getFields(self, forDisplay: bool = False):
+    def getFields(self, forDisplay: bool = False) -> List[str]:
         fields = [
             "<ignored>",
             "Id",
@@ -572,15 +581,17 @@ class ConfigManager:
             fields += onclick_fields
         return fields
 
-    def updateMapping(self, model, data):
+    def updateMapping(self, model: str, data: Dict) -> None:
         if "mapping" not in self.config:
             self.config["mapping"] = {}
-        self.config["mapping"][model] = data
+        mapping_obj = cast(Dict[str, Any], self.config["mapping"])
+        mapping_obj[model] = data
 
-    def getFieldsMapping(self, model):
-        if "mapping" not in self.config or model not in self.config["mapping"]:
+    def getFieldsMapping(self, model: str) -> Dict:
+        mapping_obj = cast(Dict[str, Any], self.config["mapping"])
+        if "mapping" not in self.config or model not in mapping_obj:
             return {}
-        return self.config["mapping"][model]
+        return mapping_obj[model]
 
 
 # Fix for ... cannot be converted to PyQt5.QtCore.QObject in this context
@@ -592,13 +603,13 @@ class MessageHandler(QObject):
 class MPVMonitor(MPVInterSubs):
     def __init__(
         self,
-        executable,
-        popenEnv,
-        fileUrls,
-        mpvConf,
-        msgHandler,
-        subsManager,
-        popupDict: PopupDictionary | None = None,
+        executable: str,
+        popenEnv: Dict[str, str],
+        fileUrls: List[str],
+        mpvConf: str,
+        msgHandler: MessageHandler,
+        subsManager: SubtitlesHelper,
+        popupDict: Optional[PopupDictionary] = None,
     ):
         self.executable = executable
         self.popenEnv = popenEnv
@@ -618,7 +629,7 @@ class MPVMonitor(MPVInterSubs):
                     ],
                 )
             )
-            ytdl_opts += f',sub-lang="%s"' % ",".join(sub_langs)
+            ytdl_opts += ',sub-lang="%s"' % ",".join(sub_langs)
         self.default_argv += [ytdl_opts]
 
         super().__init__()
@@ -626,7 +637,7 @@ class MPVMonitor(MPVInterSubs):
 
         self.audio_id = "auto"
         self.audio_ffmpeg_id = 0
-        self.sub_id = "auto"
+        self.sub_id: Optional[Union[int, Literal["auto"]]] = "auto"
         self.audio_delay = 0.0
 
         self.set_property("include", self.mpvConf)
@@ -647,7 +658,7 @@ class MPVMonitor(MPVInterSubs):
             fileUrls, app=mw.app, mpv=self, handler=handler, settings=intersubs_settings
         )
 
-    def on_property_term_status_msg(self, statusMsg=None):
+    def on_property_term_status_msg(self, statusMsg: str = "") -> None:
         m = re.match(
             r"^\[mpv2anki\] ([^#]+) # ([^#]+) # ([^#]+) # (.*?) # (.*)$",
             statusMsg,
@@ -659,9 +670,9 @@ class MPVMonitor(MPVInterSubs):
                 word, float(timePos), float(timeStart), float(timeEnd), subText
             )
 
-    def on_property_aid(self, audio_id=None):
+    def on_property_aid(self, audio_id: Any = None) -> None:
         self.audio_id = audio_id
-        if audio_id == False:
+        if audio_id is None:
             self.audio_ffmpeg_id = 0
         elif audio_id == "auto":
             track_count = int(self.get_property("track-list/count"))
@@ -674,18 +685,18 @@ class MPVMonitor(MPVInterSubs):
                     self.audio_ffmpeg_id = track_index
                     break
         else:
-            self.audio_ffmpeg_id = self.audio_id - 1
+            self.audio_ffmpeg_id = int(self.audio_id) - 1
 
-    def on_property_sid(self, sub_id=None):
-        self.sub_id = sub_id if sub_id != False else "no"
+    def on_property_sid(self, sub_id: Any = None) -> None:
+        self.sub_id = int(sub_id) if sub_id else None
 
-    def on_property_sub_delay(self, val):
+    def on_property_sub_delay(self, val: Any) -> None:
         self.subsManager.sub_delay = round(float(val), 3)
 
-    def on_property_audio_delay(self, val):
+    def on_property_audio_delay(self, val: Any) -> None:
         self.audio_delay = round(float(val), 3)
 
-    def on_start_file(self, msg):
+    def on_start_file(self, msg: Any) -> None:
         self.filePath = self.get_property("path")
         self.subsManager.init(self.filePath)
         if self.subsManager.subsPath:
@@ -700,7 +711,7 @@ class MPVMonitor(MPVInterSubs):
         if audio_delay:
             self.set_property("audio-delay", audio_delay)
 
-    def on_shutdown(self, msg=None):
+    def on_shutdown(self, msg: Any = None) -> None:
         try:
             self.close()
         except Exception:
@@ -709,14 +720,20 @@ class MPVMonitor(MPVInterSubs):
 
 
 class AnkiHelper(QObject):
-    def __init__(self, executable, popenEnv, fileUrls, configManager: ConfigManager):
+    def __init__(
+        self,
+        executable: str,
+        popenEnv: Dict[str, str],
+        fileUrls: List[str],
+        configManager: ConfigManager,
+    ):
         QObject.__init__(self, mw)
         self.configManager = configManager
         self.subsManager = SubtitlesHelper(configManager)
 
         self.msgHandler = MessageHandler()
-        self.msgHandler.create_anki_card.connect(self.createAnkiCard)
-        self.msgHandler.update_file_path.connect(self.updateFilePath)
+        qconnect(self.msgHandler.create_anki_card, self.createAnkiCard)
+        qconnect(self.msgHandler.update_file_path, self.updateFilePath)
 
         self.mpvConf = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "user_files", "mpv.conf"
@@ -739,10 +756,10 @@ class AnkiHelper(QObject):
 
         addHook("unloadProfile", self.mpvManager.on_shutdown)
 
-    def initFieldsMapping(self):
+    def initFieldsMapping(self) -> None:
         self.fieldsMap = {}
 
-        fieldsMapDefault = {}
+        fieldsMapDefault: Dict[str, Any] = {}
         for k, v in self.configManager.getFieldsMapping(
             self.settings["default_model"]
         ).items():
@@ -751,17 +768,19 @@ class AnkiHelper(QObject):
             fieldsMapDefault[v].append(k)
         self.fieldsMap["default_model"] = fieldsMapDefault
 
-    def updateFilePath(self, filePath):
+    def updateFilePath(self, filePath: str) -> None:
         self.filePath = filePath
         if "://" not in self.filePath:
             self.is_local_file = True
         else:
             self.is_local_file = False
 
-    def createAnkiCard(self, word, timePos, timeStart, timeEnd, subText):
+    def createAnkiCard(
+        self, word: str, timePos: float, timeStart: float, timeEnd: float, subText: str
+    ) -> None:
         self.addNewCard(word, timePos, timeStart, timeEnd, subText)
 
-    def format_filename(self, filename):
+    def format_filename(self, filename: str) -> str:
         if not self.is_local_file or re.search(r'[\\/:"*?<>|]+', filename):
             filename = sha1(filename.encode("utf-8")).hexdigest()
         else:
@@ -770,14 +789,21 @@ class AnkiHelper(QObject):
             filename = filename.strip()
         return filename
 
-    def subprocess_image(self, source, timePos, subprocess_calls, sub="no", suffix=""):
+    def subprocess_image(
+        self,
+        source: str,
+        timePos: float,
+        subprocess_calls: List[list[str]],
+        sub: Optional[int] = None,
+        suffix: str = "",
+    ) -> str:
         image = "%s_%s%s.jpg" % (
             self.format_filename(source),
             secondsToFilename(timePos),
             suffix,
         )
         imagePath = os.path.join(mw.col.media.dir(), image)
-        if not self.settings["use_mpv"] and ffmpeg_executable and sub == "no":
+        if not self.settings["use_mpv"] and ffmpeg_executable and sub is None:
             argv = ["ffmpeg", "-y"]
             argv += ["-ss", secondsToTimestamp(timePos)]
             argv += ["-i", self.filePath]
@@ -804,8 +830,14 @@ class AnkiHelper(QObject):
         return image
 
     def subprocess_audio(
-        self, source, sub_start, sub_end, aid, aid_ff, subprocess_calls
-    ):
+        self,
+        source: str,
+        sub_start: float,
+        sub_end: float,
+        aid: int,
+        aid_ff: int,
+        subprocess_calls: List[List[str]],
+    ) -> str:
         audio = "%s_%s-%s.%s" % (
             self.format_filename(source),
             secondsToFilename(sub_start),
@@ -847,7 +879,9 @@ class AnkiHelper(QObject):
         subprocess_calls.append(argv)
         return audio
 
-    def get_video_filename(self, source, sub_start, sub_end, video_format):
+    def get_video_filename(
+        self, source: str, sub_start: float, sub_end: float, video_format: str
+    ) -> str:
         video = "%s_%s-%s.%s" % (
             self.format_filename(source),
             secondsToFilename(sub_start),
@@ -857,8 +891,15 @@ class AnkiHelper(QObject):
         return video
 
     def subprocess_video(
-        self, source, sub_start, sub_end, aid, aid_ff, video_format, subprocess_calls
-    ):
+        self,
+        source: str,
+        sub_start: float,
+        sub_end: float,
+        aid: int,
+        aid_ff: int,
+        video_format: str,
+        subprocess_calls: List[List[str]],
+    ) -> str:
         video = self.get_video_filename(source, sub_start, sub_end, video_format)
         videoPath = os.path.join(mw.col.media.dir(), video)
         if not self.settings["use_mpv"] and ffmpeg_executable:
@@ -910,24 +951,22 @@ class AnkiHelper(QObject):
         return video
 
     # anki.utils.call() with bundle libs if mpv is packaged
-    def call(self, argv):
+    def call(self, argv: List[str]) -> None:
         if is_win:
             si = subprocess.STARTUPINFO()
-            try:
-                si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            except:
-                si.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW
+            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         else:
             si = None
 
         subprocess.Popen(argv, startupinfo=si, env=self.popenEnv)
 
-    def addNewCard(self, word, timePos, timeStart, timeEnd, subText):
-
+    def addNewCard(
+        self, word: str, timePos: float, timeStart: float, timeEnd: float, subText: str
+    ) -> None:
         noteFields = {k: "" for k in self.configManager.getFields()}
 
         model = mw.col.models.by_name(self.settings["default_model"])
-        mw.col.models.setCurrent(model)
+        mw.col.models.set_current(model)
 
         noteFields["Word"] = word
         if self.configManager.onClickDict:
@@ -950,8 +989,8 @@ class AnkiHelper(QObject):
         subTranslation_before = ""
         subTranslation_after = ""
 
-        sub_start = -1
-        sub_end = -1
+        sub_start = -1.0
+        sub_end = -1.0
 
         sub_pad_start = self.settings["pad_start"] / 1000.0
         sub_pad_end = self.settings["pad_end"] / 1000.0
@@ -962,8 +1001,7 @@ class AnkiHelper(QObject):
                     "show-text", "Error: Card duration > 60 seconds."
                 )
                 return
-            else:
-                timeEnd = timePos
+            timeEnd = timePos
 
         if timeStart >= 0:
             subTime = timeStart + (timeEnd - timeStart) / 2
@@ -1038,11 +1076,11 @@ class AnkiHelper(QObject):
 
         noteFields["Time"] = secondsToTimestamp(timePos)
 
-        subprocess_calls = []
+        subprocess_calls: List[List[str]] = []
 
-        aid = self.mpvManager.audio_id
+        aid = cast(int, self.mpvManager.audio_id)
         aid_ff = self.mpvManager.audio_ffmpeg_id
-        sid = self.mpvManager.sub_id
+        sid = cast(Optional[int], self.mpvManager.sub_id)
 
         fieldsMap = self.fieldsMap["default_model"]
 
@@ -1143,7 +1181,7 @@ class AnkiHelper(QObject):
             return
 
         did = mw.col.decks.id(self.settings["default_deck"])
-        note.model()["did"] = did
+        note.note_type()["did"] = did
 
         if mw.state == "deckBrowser":
             mw.col.decks.select(did)
@@ -1178,7 +1216,7 @@ class AnkiHelper(QObject):
 
 
 class FieldMapping(QDialog):
-    def __init__(self, name, configManager, parent: MainWindow):
+    def __init__(self, name: str, configManager: ConfigManager, parent: "MainWindow"):
         QDialog.__init__(self, parent)
         self.configManager = configManager
         # self.defaultFields = self.configManager.getFields(True)
@@ -1186,7 +1224,7 @@ class FieldMapping(QDialog):
         self.name = name
         self.initUI()
 
-    def initUI(self):
+    def initUI(self) -> None:
         self.setWindowTitle(self.name)
 
         vbox = QVBoxLayout()
@@ -1194,7 +1232,7 @@ class FieldMapping(QDialog):
         self.fields = []
         groupBox = QGroupBox("Field Mapping")
         m = mw.col.models.by_name(self.name)
-        fields = mw.col.models.fieldNames(m)
+        fields = mw.col.models.field_names(m)
         grid = QGridLayout()
         for idx, fld in enumerate(fields):
             le = QLineEdit(fld)
@@ -1204,8 +1242,8 @@ class FieldMapping(QDialog):
             cb = QComboBox()
             defaultFields = self.configManager.getFields()
             displayFields = self.configManager.getFields(True)
-            for i in range(len(defaultFields)):
-                cb.addItem(displayFields[i], defaultFields[i])
+            for i, defaultField in enumerate(defaultFields):
+                cb.addItem(displayFields[i], defaultField)
             if fld in self.fieldsMapping:
                 cb.setCurrentIndex(
                     cb.findData(self.fieldsMapping[fld], Qt.ItemDataRole.UserRole)
@@ -1219,15 +1257,17 @@ class FieldMapping(QDialog):
         vbox.addWidget(groupBox)
 
         self.buttonBox = QDialogButtonBox(self)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.buttonBox.setStandardButtons(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
         self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.reject)
+        qconnect(self.buttonBox.accepted, self.accept)
+        qconnect(self.buttonBox.rejected, self.reject)
         vbox.addWidget(self.buttonBox)
 
         self.setLayout(vbox)
 
-    def accept(self):
+    def accept(self) -> None:
         m = {}
         for fld, cb in self.fields:
             if cb.currentText() != "<ignored>":
@@ -1237,7 +1277,7 @@ class FieldMapping(QDialog):
 
 
 class MainWindow(QDialog):
-    def __init__(self, configManager: ConfigManager, parent=None):
+    def __init__(self, configManager: ConfigManager, parent: Optional[QWidget] = None):
         QDialog.__init__(self, parent, Qt.WindowType.Window)
         self.configManager = configManager
         self.settings = self.configManager.getSettings()
@@ -1245,7 +1285,9 @@ class MainWindow(QDialog):
         self.isURL = False
         self.initUI()
 
-    def getTwoSpeenBoxesOptionsGroup(self, name, labels, values, options):
+    def getTwoSpeenBoxesOptionsGroup(
+        self, name: str, labels: List[str], values: List[int], options: List[int]
+    ) -> Tuple[QGroupBox, QSpinBox, QSpinBox]:
         groupBox = QGroupBox(name)
         spinBoxFirst = QSpinBox()
         spinBoxSecond = QSpinBox()
@@ -1276,17 +1318,17 @@ class MainWindow(QDialog):
 
         return groupBox, spinBoxFirst, spinBoxSecond
 
-    def chooseModel(self, name):
-        def onEdit():
+    def chooseModel(self, name: str) -> None:
+        def onEdit() -> None:
             import aqt.models
 
             aqt.models.Models(mw, self)
 
         edit = QPushButton("Manage")
-        edit.clicked.connect(onEdit)
+        qconnect(edit.clicked, onEdit)
 
-        def nameFunc():
-            return sorted(mw.col.models.allNames())
+        def nameFunc() -> List[str]:
+            return sorted(mw.col.models.all_names())
 
         ret = StudyDeck(
             mw,
@@ -1296,21 +1338,21 @@ class MainWindow(QDialog):
             title="Choose Note Type",
             parent=self,
         )
-        if ret.name == None:
+        if ret.name is None:
             return
         self.modelButton.setText(ret.name)
 
-    def chooseDeck(self, name):
+    def chooseDeck(self, name: str) -> None:
         ret = StudyDeck(mw, accept="Choose", title="Choose Deck", parent=self)
-        if ret.name == None:
+        if ret.name is None:
             return
         self.deckButton.setText(ret.name)
 
-    def mapFields(self, model):
+    def mapFields(self, model: str) -> None:
         fm = FieldMapping(model, self.configManager, parent=self)
         fm.exec()
 
-    def initUI(self):
+    def initUI(self) -> None:
         self.setWindowTitle("mpv2anki")
 
         vbox = QVBoxLayout()
@@ -1319,14 +1361,14 @@ class MainWindow(QDialog):
         presetsGroup = QGroupBox("Presets")
 
         self.newPresetButton = QPushButton("New")
-        self.newPresetButton.clicked.connect(self.onNewPreset)
+        qconnect(self.newPresetButton.clicked, self.onNewPreset)
         self.presetCombo = QComboBox()
         default_preset = self.configManager.getDefaultPreset()
         for preset in self.configManager.presets:
             self.presetCombo.addItem(preset)
             if preset == default_preset:
                 self.presetCombo.setCurrentText(preset)
-        self.presetCombo.currentIndexChanged.connect(self.onPresetChanged)
+        qconnect(self.presetCombo.currentIndexChanged, self.onPresetChanged)
         self.configManager.load(self.presetCombo.currentText())
         self.settings = self.configManager.getSettings()
         grid = QGridLayout()
@@ -1346,13 +1388,14 @@ class MainWindow(QDialog):
         else:
             self.modelButton.setText(mw.col.models.current()["name"])
         self.modelButton.setAutoDefault(False)
-        self.modelButton.clicked.connect(lambda: self.chooseModel("default_model"))
+        qconnect(self.modelButton.clicked, lambda: self.chooseModel("default_model"))
         self.modelFieldsButton = QPushButton()
-        self.modelFieldsButton.clicked.connect(
-            lambda: self.mapFields(self.modelButton.text())
+        qconnect(
+            self.modelFieldsButton.clicked,
+            lambda: self.mapFields(self.modelButton.text()),
         )
         self.deckButton = QPushButton(self.settings["default_deck"])
-        self.deckButton.clicked.connect(lambda: self.chooseDeck("default_deck"))
+        qconnect(self.deckButton.clicked, lambda: self.chooseDeck("default_deck"))
         self.useMPV = QCheckBox("Use MPV?")
         self.useMPV.setChecked(self.settings["use_mpv"])
 
@@ -1402,10 +1445,13 @@ class MainWindow(QDialog):
 
         self.avDelay = avDelay = QDoubleSpinBox()
         avDelayLabel = QLabel("A/V delay")
-        avDelayLabel.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        videoGroup.layout().addWidget(avDelayLabel, 2, 0)
-        videoGroup.layout().addWidget(avDelay, 2, 1)
-        videoGroup.layout().addWidget(QLabel("seconds"), 2, 2)
+        avDelayLabel.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        video_grid_layout = cast(QGridLayout, videoGroup.layout())
+        video_grid_layout.addWidget(avDelayLabel, 2, 0)
+        video_grid_layout.addWidget(avDelay, 2, 1)
+        video_grid_layout.addWidget(QLabel("seconds"), 2, 2)
         avDelay.setRange(-2147483648, 2147483647)
         avDelay.setSingleStep(1)
         avDelay.setValue(self.settings["av_delay"])
@@ -1449,19 +1495,29 @@ class MainWindow(QDialog):
         self.subsNativeLC.setReadOnly(True)
         self.subsTargetLC.setStyleSheet("QLineEdit{background: #f4f3f4;}")
         self.subsNativeLC.setStyleSheet("QLineEdit{background: #f4f3f4;}")
-        self.subsTargetLC.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
-        self.subsNativeLC.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
-        self.subsTargetLang.currentIndexChanged.connect(
-            lambda: self.chooseSubs(self.subsTargetLang, self.subsTargetLC)
+        self.subsTargetLC.setAlignment(
+            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
         )
-        self.subsNativeLang.currentIndexChanged.connect(
-            lambda: self.chooseSubs(self.subsNativeLang, self.subsNativeLC)
+        self.subsNativeLC.setAlignment(
+            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
+        )
+        qconnect(
+            self.subsTargetLang.currentIndexChanged,
+            lambda: self.chooseSubs(self.subsTargetLang, self.subsTargetLC),
+        )
+        qconnect(
+            self.subsNativeLang.currentIndexChanged,
+            lambda: self.chooseSubs(self.subsNativeLang, self.subsNativeLC),
         )
         grid3.addWidget(self.subsTargetLC, 0, 3)
         grid3.addWidget(self.subsNativeLC, 1, 3)
         grid3.addWidget(QLabel(" (optional)"), 1, 4)
         grid3.addItem(
-            QSpacerItem(40, 20, QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Minimum), 0, 4, 1, 2
+            QSpacerItem(40, 20, QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Minimum),
+            0,
+            4,
+            1,
+            2,
         )
         subsGroup.setLayout(grid3)
         grid.addWidget(subsGroup, 3, 0, 1, 5)
@@ -1490,15 +1546,15 @@ class MainWindow(QDialog):
         onClickDictGroup.setLayout(grid5)
         grid.addWidget(onClickDictGroup, 5, 0, 1, 5)
         self.onclick_dicts = [
-            dictionary
-            for dictionary in onclick.dictionaries
-            if dictionary.is_available()
+            onclick_dict
+            for onclick_dict in onclick.dictionaries
+            if onclick_dict.is_available()
         ]
         self.onClickDict.addItems(
-            [dictionary.name for dictionary in self.onclick_dicts]
+            [onclick_dict.name for onclick_dict in self.onclick_dicts]
         )
-        for i, dictionary in enumerate(self.onclick_dicts):
-            if dictionary.name == self.settings.get("onclick_dict"):
+        for i, onclick_dict in enumerate(self.onclick_dicts):
+            if onclick_dict.name == self.settings.get("onclick_dict"):
                 self.onClickDict.setCurrentIndex(i)
 
         popupDictGroup = QGroupBox("Pop-up Dictionary")
@@ -1514,21 +1570,21 @@ class MainWindow(QDialog):
         popupDictGroup.setLayout(grid6)
         grid.addWidget(popupDictGroup, 6, 0, 1, 5)
         self.popup_dicts = [
-            dictionary for dictionary in popup.dictionaries if dictionary.is_available()
+            popup_dict for popup_dict in popup.dictionaries if popup_dict.is_available()
         ]
-        self.popupDict.addItems([dictionary.name for dictionary in self.popup_dicts])
-        for i, dictionary in enumerate(self.popup_dicts):
-            if dictionary.name == self.settings.get("popup_dict"):
+        self.popupDict.addItems([popup_dict.name for popup_dict in self.popup_dicts])
+        for i, popup_dict in enumerate(self.popup_dicts):
+            if popup_dict.name == self.settings.get("popup_dict"):
                 self.popupDict.setCurrentIndex(i)
 
         # Go!
 
         self.openURLButton = QPushButton("Open URL")
-        self.openURLButton.clicked.connect(self.openURL)
+        qconnect(self.openURLButton.clicked, self.openURL)
 
         self.openFileButton = QPushButton("Open File")
         self.openFileButton.setDefault(True)
-        self.openFileButton.clicked.connect(self.start)
+        qconnect(self.openFileButton.clicked, self.start)
 
         hbox = QHBoxLayout()
         hbox.addStretch(1)
@@ -1547,7 +1603,7 @@ class MainWindow(QDialog):
 
         self.setWindowState(Qt.WindowState.WindowMaximized)
 
-    def onPresetChanged(self):
+    def onPresetChanged(self) -> None:
         self.configManager.save(self.configManager.currentPreset)
         self.configManager.load(self.presetCombo.currentText())
         self.settings = self.configManager.getSettings()
@@ -1574,22 +1630,22 @@ class MainWindow(QDialog):
         )
         self.subsTargetLC.setText(self.settings["subs_target_language_code"])
         self.subsNativeLC.setText(self.settings["subs_native_language_code"])
-        for i, dictionary in enumerate(self.onclick_dicts):
-            if dictionary.name == self.settings.get("onclick_dict", None):
+        for i, onclick_dict in enumerate(self.onclick_dicts):
+            if onclick_dict.name == self.settings.get("onclick_dict", None):
                 self.onClickDict.setCurrentIndex(i)
         if self.configManager.onClickDict:
             self.configManager.onClickDict.widget.update_options(
                 self.settings["onclick_options"]
             )
-        for i, dictionary in enumerate(self.popup_dicts):
-            if dictionary.name == self.settings.get("popup_dict"):
+        for i, popup_dict in enumerate(self.popup_dicts):
+            if popup_dict.name == self.settings.get("popup_dict"):
                 self.popupDict.setCurrentIndex(i)
         if self.configManager.popupDict:
             self.configManager.popupDict.widget.update_options(
                 self.settings["popup_options"]
             )
 
-    def onNewPreset(self):
+    def onNewPreset(self) -> None:
         preset = getOnlyText("Preset name:")
         if not preset:
             return
@@ -1612,21 +1668,13 @@ class MainWindow(QDialog):
         # FIXME: pop-up dict has nothing to do with the config manager - store it somewhere else!
         self.configManager.popupDict = dictionary
 
-    def chooseSubs(self, cb, cblc):
+    def chooseSubs(self, cb: QComboBox, cblc: QLineEdit) -> None:
         if cb.currentText() == "":
             cblc.setText("")
         else:
             cblc.setText(self.subsLC[cb.currentText()])
 
-    def toggleGroup(self, ctrl):
-        state = ctrl.isChecked()
-        if state:
-            ctrl.setFixedHeight(ctrl.sizeHint().height())
-        else:
-            ctrl.setFixedHeight(24)
-        self.adjustSize()
-
-    def saveSettings(self):
+    def saveSettings(self) -> None:
         self.settings["default_model"] = self.modelButton.text()
         self.settings["default_deck"] = self.deckButton.text()
         self.settings["use_mpv"] = self.useMPV.isChecked()
@@ -1647,11 +1695,11 @@ class MainWindow(QDialog):
 
         self.configManager.save(self.presetCombo.currentText())
 
-    def reject(self):
+    def reject(self) -> None:
         self.saveSettings()
         self.done(0)
 
-    def validate(self):
+    def validate(self) -> Tuple[bool, str]:
         name = self.settings["default_model"]
 
         fm = self.configManager.getFieldsMapping(name)
@@ -1662,7 +1710,7 @@ class MainWindow(QDialog):
             )
 
         model = mw.col.models.by_name(name)
-        fields = mw.col.models.fieldNames(model)
+        fields = mw.col.models.field_names(model)
 
         m = {}
         renamed_or_deleted = []
@@ -1679,15 +1727,16 @@ class MainWindow(QDialog):
             msg += "\n\n"
             msg += "Please click on the gear icon and double check the mapping."
             self.configManager.updateMapping(name, m)
+
             return False, msg
 
         return True, None
 
-    def openURL(self):
+    def openURL(self) -> None:
         self.isURL = True
         self.start()
 
-    def start(self):
+    def start(self) -> None:
         if self.configManager.popupDict:
             popup_options = self.configManager.popupDict.collect_widget_settings()
             self.settings["popup_dict"] = self.configManager.popupDict.name
@@ -1710,7 +1759,7 @@ class MainWindow(QDialog):
             showWarning(msg)
 
 
-def openVideoWithMPV():
+def openVideoWithMPV() -> None:
     env = os.environ.copy()
 
     if is_win:
@@ -1732,10 +1781,11 @@ def openVideoWithMPV():
     os.environ["PATH"] = env["PATH"]
     if executable is None:
         if is_lin:
-            return showWarning(
+            showWarning(
                 "Please install <a href='https://mpv.io'>mpv</a> and try again.",
                 parent=mw,
             )
+            return
         if is_mac:
             msg = """The add-on can't find mpv. Please install it from <a href='https://mpv.io'>https://mpv.io</a> and try again.
 <br><br>
@@ -1751,7 +1801,8 @@ or
 <br><br>
 <code>brew cask install mpv</code>
 """
-            return showText(msg, type="html", parent=mw)
+            showText(msg, type="html", parent=mw)
+            return
         assert is_win
         msg = """The add-on can't find mpv. Please install it from <a href='https://mpv.io'>https://mpv.io</a> and try again.
 <br><br>
@@ -1761,7 +1812,8 @@ or
 - Update the PATH environment variable - <a href='https://www.architectryan.com/2018/03/17/add-to-the-path-on-windows-10/'>https://www.architectryan.com/2018/03/17/add-to-the-path-on-windows-10/</a> or <a href='https://streamable.com/2b1l6'>https://streamable.com/2b1l6</a><br>
 - Restart Anki.
 """
-        return showText(msg, type="html", parent=mw)
+        showText(msg, type="html", parent=mw)
+        return
 
     configManager = ConfigManager()
     mainWindow = MainWindow(configManager, parent=mw)
@@ -1773,15 +1825,13 @@ or
                 return
             fileUrls = [txt]
         else:
-            fileUrls = getVideoFile()
 
-            def formatURL(url):
+            def formatURL(url: QUrl) -> str:
                 if url.isLocalFile():
                     return url.toLocalFile()
-                else:
-                    return url.toString()
+                return url.toString()
 
-            fileUrls = [formatURL(f) for f in fileUrls]
+            fileUrls = [formatURL(f) for f in getVideoFile()]
         if not fileUrls:
             return
         AnkiHelper(executable, popenEnv, fileUrls, configManager)
@@ -1791,5 +1841,5 @@ or
 
 action = QAction("Open Video...", mw)
 action.setShortcut("Ctrl+O")
-action.triggered.connect(openVideoWithMPV)
+qconnect(action.triggered, openVideoWithMPV)
 mw.form.menuTools.addAction(action)

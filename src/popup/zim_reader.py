@@ -1,7 +1,5 @@
-from __future__ import annotations
-
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Type
+from typing import TYPE_CHECKING, Any, Dict, Optional, Type, cast
 
 from aqt.qt import *
 from intersubs.popup import Popup
@@ -11,20 +9,21 @@ if TYPE_CHECKING:
     from zim_reader.server import ZIMServer
 
 from ..utils import find_addon_by_names
-from .dictionary import PopupDictionary
-from .intersubs_handler import InterSubsHandler
+from .dictionary import PopupDictionary, PopupWidget
+from .intersubs_handler import InterSubsHandler, MPVInterSubs
 
 
 class ZIMDIctInterSubsHandler(InterSubsHandler):
-    def __init__(self, mpv: MPVInterSubs, dictionary: PopupDictionary | None):
+    def __init__(self, mpv: MPVInterSubs, dictionary: Optional[PopupDictionary]):
         super().__init__(mpv, dictionary)
-        self.server: Any | None = None
+        self.server: Optional[ZIMServer] = None
 
     def on_popup_created(self, popup: Popup) -> None:
         if self.server:
             return
-        self.server: ZIMServer = self.dictionary.mod.server.create_server(
-            self.dictionary.file, self.dictionary.parser, follow_redirects=True
+        dictionary = cast(ZIMReaderPopupDict, self.dictionary)
+        self.server = dictionary.mod.server.create_server(
+            dictionary.file, dictionary.parser, follow_redirects=True
         )
         self.server.start()
 
@@ -45,11 +44,11 @@ class ZIMReaderPopupDict(PopupDictionary):
     intersubs_handler_class = ZIMDIctInterSubsHandler
 
     def __init__(self, options: dict) -> None:
-        self.options = options
-        self.mod: Any | None = None
-        self._widget: QWidget | None = None
-        self.file: Path | None = None
-        self.parser: Parser | None = None
+        super().__init__(options)
+        self.mod: Optional[Any] = None
+        self._widget: Optional[ZIMReaderWidget] = None
+        self.file: Optional[Path] = None
+        self.parser: Optional[Parser] = None
         self._init_dict()
 
     @classmethod
@@ -60,13 +59,13 @@ class ZIMReaderPopupDict(PopupDictionary):
         self.mod = find_addon_by_names([self.package_name, self.name])
 
     @property
-    def widget(self) -> ZIMReaderWidget:
+    def widget(self) -> "ZIMReaderWidget":
         if self._widget:
             return self._widget
         self._widget = ZIMReaderWidget(self, self.options)
         return self._widget
 
-    def collect_widget_settings(self) -> dict | None:
+    def collect_widget_settings(self) -> Optional[Dict]:
         if not self.widget.selected_file:
             return None
         self.file = self.widget.selected_file
@@ -79,10 +78,12 @@ class ZIMReaderPopupDict(PopupDictionary):
 
 # Copied from onclick/zim_reader.py with modifications
 # TODO: DRY
-class ZIMReaderWidget(QWidget):
-    def __init__(self, zim_reader: ZIMReaderPopupDict, options: dict) -> None:
-        super().__init__()
-        self.zim_reader = zim_reader
+
+
+class ZIMReaderWidget(PopupWidget):
+    def __init__(self, dictionary: ZIMReaderPopupDict, options: dict) -> None:
+        super().__init__(dictionary, options)
+        self.dictionary = dictionary
         grid = QGridLayout()
         grid.addWidget(QLabel("File"), 0, 0)
         self.fileComboBox = QComboBox()
@@ -90,9 +91,9 @@ class ZIMReaderWidget(QWidget):
         grid.addWidget(QLabel("Parser"), 1, 0)
         self.parserComboBox = QComboBox()
         grid.addWidget(self.parserComboBox, 1, 1)
-        self.files = zim_reader.mod.dictionaries.get_files()
+        self.files = dictionary.mod.dictionaries.get_files()
         self.fileComboBox.addItems([file.name for file in self.files])
-        self.parsers: list[Type[Parser]] = zim_reader.mod.dictionaries.PARSER_CLASSES
+        self.parsers: list[Type[Parser]] = dictionary.mod.dictionaries.PARSER_CLASSES
         self.parserComboBox.addItems([parser.name for parser in self.parsers])
         self.update_options(options)
         self.setLayout(grid)
@@ -106,14 +107,14 @@ class ZIMReaderWidget(QWidget):
                 self.parserComboBox.setCurrentIndex(i)
 
     @property
-    def selected_file(self) -> Path | None:
+    def selected_file(self) -> Optional[Path]:
         idx = self.fileComboBox.currentIndex()
         if idx >= 0:
             return self.files[idx]
         return None
 
     @property
-    def selected_parser(self) -> Parser | None:
+    def selected_parser(self) -> Optional[Parser]:
         idx = self.parserComboBox.currentIndex()
         if idx >= 0:
             return self.parsers[idx]()

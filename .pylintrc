@@ -29,4 +29,13 @@ disable=
   protected-access,
   arguments-renamed,
   consider-using-f-string,
-  invalid-name
+  invalid-name,
+  ; Temporarily disabled until I get the time to do a big refactoring
+  duplicate-code,
+  too-many-branches,
+  too-many-statements,
+  too-many-arguments,
+  too-many-instance-attributes,
+  too-many-locals,
+  consider-using-with,
+  too-many-boolean-expressions,

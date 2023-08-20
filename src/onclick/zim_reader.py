@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from zim_reader.dictionaries.parser import Parser
 
 from ..utils import find_addon_by_names
-from .dictionary import OnClickDictionary
+from .dictionary import OnClickDictionary, OnClickWidget
 
 
 class ZIMReaderOnclickDict(OnClickDictionary):
@@ -20,9 +20,9 @@ class ZIMReaderOnclickDict(OnClickDictionary):
     package_name = "zim_reader"
 
     def __init__(self, options: dict) -> None:
-        self.options = options
+        super().__init__(options)
         self.mod: Any | None = None
-        self._widget: QWidget | None = None
+        self._widget: ZIMReaderWidget | None = None
         self.file: Path | None = None
         self.parser: Parser | None = None
         self._init_dict()
@@ -81,10 +81,9 @@ class ZIMReaderOnclickDict(OnClickDictionary):
         }
 
 
-class ZIMReaderWidget(QWidget):
-    def __init__(self, zim_reader: ZIMReaderOnclickDict, options: dict) -> None:
-        super().__init__()
-        self.zim_reader = zim_reader
+class ZIMReaderWidget(OnClickWidget):
+    def __init__(self, dictionary: ZIMReaderOnclickDict, options: dict) -> None:
+        super().__init__(dictionary, options)
         grid = QGridLayout()
         grid.addWidget(QLabel("File"), 0, 0)
         self.fileComboBox = QComboBox()
@@ -92,9 +91,9 @@ class ZIMReaderWidget(QWidget):
         grid.addWidget(QLabel("Parser"), 1, 0)
         self.parserComboBox = QComboBox()
         grid.addWidget(self.parserComboBox, 1, 1)
-        self.files = zim_reader.mod.dictionaries.get_files()
+        self.files = dictionary.mod.dictionaries.get_files()
         self.fileComboBox.addItems([file.name for file in self.files])
-        self.parsers: list[Type[Parser]] = zim_reader.mod.dictionaries.PARSER_CLASSES
+        self.parsers: list[Type[Parser]] = dictionary.mod.dictionaries.PARSER_CLASSES
         self.parserComboBox.addItems([parser.name for parser in self.parsers])
         self.update_options(options)
         self.setLayout(grid)
