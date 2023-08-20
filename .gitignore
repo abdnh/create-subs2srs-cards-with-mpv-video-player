@@ -5,3 +5,4 @@ vendor/
 ankidata/
 src/user_files/config.json
 *.ankiaddon
+TODO.md
