@@ -47,7 +47,7 @@ from os.path import expanduser
 
 from anki.hooks import addHook
 from anki.lang import _, langs
-from anki.utils import isLin, isMac, isWin
+from anki.utils import is_lin, is_mac, is_win
 
 from aqt import mw
 
@@ -69,7 +69,7 @@ import pysubs2
 from intersubs.main import run as intersubs_run
 from intersubs.mpv_intersubs import MPVInterSubs
 
-if isMac and "/usr/local/bin" not in os.environ["PATH"]:
+if is_mac and "/usr/local/bin" not in os.environ["PATH"]:
     # https://docs.brew.sh/FAQ#my-mac-apps-dont-find-usrlocalbin-utilities
     os.environ["PATH"] = "/usr/local/bin:" + os.environ["PATH"]
 
@@ -102,9 +102,7 @@ def getVideoFile():
         directory = dirname
     else:
         directory = QUrl.fromLocalFile(dirname)
-    urls = QFileDialog.getOpenFileUrls(
-        None, _("Open Video File or URL"), directory=directory, filter=key
-    )[0]
+    urls = QFileDialog.getOpenFileUrls(None, "Open Video File or URL", directory=directory, filter=key)[0]
     if urls and urls[0].isLocalFile():
         filePath = urls[0].toLocalFile()
         dirname = os.path.dirname(filePath)
@@ -913,7 +911,7 @@ class AnkiHelper(QObject):
 
     # anki.utils.call() with bundle libs if mpv is packaged
     def call(self, argv):
-        if isWin:
+        if is_win:
             si = subprocess.STARTUPINFO()
             try:
                 si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
@@ -928,7 +926,7 @@ class AnkiHelper(QObject):
 
         noteFields = {k: "" for k in self.configManager.getFields()}
 
-        model = mw.col.models.byName(self.settings["default_model"])
+        model = mw.col.models.by_name(self.settings["default_model"])
         mw.col.models.setCurrent(model)
 
         noteFields["Word"] = word
@@ -1168,7 +1166,7 @@ class AnkiHelper(QObject):
         if cards == 0:
             self.mpvManager.command("show-text", "Error: No cards added.")
         else:
-            if isMac:
+            if is_mac:
                 self.mpvManager.command("expand-properties", "show-text", "Added.")
             else:
                 self.mpvManager.command(
@@ -1195,7 +1193,7 @@ class FieldMapping(QDialog):
 
         self.fields = []
         groupBox = QGroupBox("Field Mapping")
-        m = mw.col.models.byName(self.name)
+        m = mw.col.models.by_name(self.name)
         fields = mw.col.models.fieldNames(m)
         grid = QGridLayout()
         for idx, fld in enumerate(fields):
@@ -1221,8 +1219,8 @@ class FieldMapping(QDialog):
         vbox.addWidget(groupBox)
 
         self.buttonBox = QDialogButtonBox(self)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
         vbox.addWidget(self.buttonBox)
@@ -1255,13 +1253,13 @@ class MainWindow(QDialog):
         grid = QGridLayout()
 
         label = QLabel(labels[0])
-        label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         grid.addWidget(label, 0, 0)
         grid.addWidget(spinBoxFirst, 0, 1)
         grid.addWidget(QLabel(labels[2]), 0, 2)
 
         label = QLabel(labels[1])
-        label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         grid.addWidget(label, 1, 0)
         grid.addWidget(spinBoxSecond, 1, 1)
         grid.addWidget(QLabel(labels[2]), 1, 2)
@@ -1284,7 +1282,7 @@ class MainWindow(QDialog):
 
             aqt.models.Models(mw, self)
 
-        edit = QPushButton(_("Manage"))
+        edit = QPushButton("Manage")
         edit.clicked.connect(onEdit)
 
         def nameFunc():
@@ -1294,8 +1292,8 @@ class MainWindow(QDialog):
             mw,
             names=nameFunc,
             buttons=[edit],
-            accept=_("Choose"),
-            title=_("Choose Note Type"),
+            accept="Choose",
+            title="Choose Note Type",
             parent=self,
         )
         if ret.name == None:
@@ -1303,14 +1301,14 @@ class MainWindow(QDialog):
         self.modelButton.setText(ret.name)
 
     def chooseDeck(self, name):
-        ret = StudyDeck(mw, accept=_("Choose"), title=_("Choose Deck"), parent=self)
+        ret = StudyDeck(mw, accept="Choose", title="Choose Deck", parent=self)
         if ret.name == None:
             return
         self.deckButton.setText(ret.name)
 
     def mapFields(self, model):
         fm = FieldMapping(model, self.configManager, parent=self)
-        fm.exec_()
+        fm.exec()
 
     def initUI(self):
         self.setWindowTitle("mpv2anki")
@@ -1343,7 +1341,7 @@ class MainWindow(QDialog):
 
         importGroup = QGroupBox("Import Options")
         self.modelButton = QPushButton()
-        if mw.col.models.byName(self.settings["default_model"]):
+        if mw.col.models.by_name(self.settings["default_model"]):
             self.modelButton.setText(self.settings["default_model"])
         else:
             self.modelButton.setText(mw.col.models.current()["name"])
@@ -1404,7 +1402,7 @@ class MainWindow(QDialog):
 
         self.avDelay = avDelay = QDoubleSpinBox()
         avDelayLabel = QLabel("A/V delay")
-        avDelayLabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        avDelayLabel.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         videoGroup.layout().addWidget(avDelayLabel, 2, 0)
         videoGroup.layout().addWidget(avDelay, 2, 1)
         videoGroup.layout().addWidget(QLabel("seconds"), 2, 2)
@@ -1451,8 +1449,8 @@ class MainWindow(QDialog):
         self.subsNativeLC.setReadOnly(True)
         self.subsTargetLC.setStyleSheet("QLineEdit{background: #f4f3f4;}")
         self.subsNativeLC.setStyleSheet("QLineEdit{background: #f4f3f4;}")
-        self.subsTargetLC.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
-        self.subsNativeLC.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        self.subsTargetLC.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        self.subsNativeLC.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
         self.subsTargetLang.currentIndexChanged.connect(
             lambda: self.chooseSubs(self.subsTargetLang, self.subsTargetLC)
         )
@@ -1463,7 +1461,7 @@ class MainWindow(QDialog):
         grid3.addWidget(self.subsNativeLC, 1, 3)
         grid3.addWidget(QLabel(" (optional)"), 1, 4)
         grid3.addItem(
-            QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum), 0, 4, 1, 2
+            QSpacerItem(40, 20, QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Minimum), 0, 4, 1, 2
         )
         subsGroup.setLayout(grid3)
         grid.addWidget(subsGroup, 3, 0, 1, 5)
@@ -1554,7 +1552,7 @@ class MainWindow(QDialog):
         self.configManager.load(self.presetCombo.currentText())
         self.settings = self.configManager.getSettings()
 
-        if mw.col.models.byName(self.settings["default_model"]):
+        if mw.col.models.by_name(self.settings["default_model"]):
             self.modelButton.setText(self.settings["default_model"])
         else:
             self.modelButton.setText(mw.col.models.current()["name"])
@@ -1663,7 +1661,7 @@ class MainWindow(QDialog):
                 "No fields were mapped. Please click on the gear icon and map some fields.",
             )
 
-        model = mw.col.models.byName(name)
+        model = mw.col.models.by_name(name)
         fields = mw.col.models.fieldNames(model)
 
         m = {}
@@ -1715,7 +1713,7 @@ class MainWindow(QDialog):
 def openVideoWithMPV():
     env = os.environ.copy()
 
-    if isWin:
+    if is_win:
         path = os.environ["PATH"].split(os.pathsep)
         os.environ["PATH"] = os.pathsep.join(path[1:])
 
@@ -1725,7 +1723,7 @@ def openVideoWithMPV():
     if "LD_LIBRARY_PATH" in popenEnv:
         del popenEnv["LD_LIBRARY_PATH"]
 
-    if isMac and os.path.exists("/Applications/mpv.app/Contents/MacOS/mpv"):
+    if is_mac and os.path.exists("/Applications/mpv.app/Contents/MacOS/mpv"):
         executable = "/Applications/mpv.app/Contents/MacOS/mpv"
 
     if executable is None:
@@ -1733,12 +1731,12 @@ def openVideoWithMPV():
 
     os.environ["PATH"] = env["PATH"]
     if executable is None:
-        if isLin:
+        if is_lin:
             return showWarning(
                 "Please install <a href='https://mpv.io'>mpv</a> and try again.",
                 parent=mw,
             )
-        if isMac:
+        if is_mac:
             msg = """The add-on can't find mpv. Please install it from <a href='https://mpv.io'>https://mpv.io</a> and try again.
 <br><br>
 - Download mpv from <a href='https://laboratory.stolendata.net/~djinn/mpv_osx/'>https://laboratory.stolendata.net/~djinn/mpv_osx/</a><br>
@@ -1754,7 +1752,7 @@ or
 <code>brew cask install mpv</code>
 """
             return showText(msg, type="html", parent=mw)
-        assert isWin
+        assert is_win
         msg = """The add-on can't find mpv. Please install it from <a href='https://mpv.io'>https://mpv.io</a> and try again.
 <br><br>
 - The Windows build can be downloaded from <a href='https://sourceforge.net/projects/mpv-player-windows/files/64bit/'>https://sourceforge.net/projects/mpv-player-windows/files/64bit/</a><br>
@@ -1768,7 +1766,7 @@ or
     configManager = ConfigManager()
     mainWindow = MainWindow(configManager, parent=mw)
 
-    if mainWindow.exec_():
+    if mainWindow.exec():
         if mainWindow.isURL:
             txt = getOnlyText("Enter URL:")
             if not txt:
@@ -1792,6 +1790,6 @@ or
 
 
 action = QAction("Open Video...", mw)
-action.setShortcut(_("Ctrl+O"))
+action.setShortcut("Ctrl+O")
 action.triggered.connect(openVideoWithMPV)
 mw.form.menuTools.addAction(action)
