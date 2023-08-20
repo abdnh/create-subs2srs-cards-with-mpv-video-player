@@ -953,8 +953,12 @@ class AnkiHelper(QObject):
     # anki.utils.call() with bundle libs if mpv is packaged
     def call(self, argv: List[str]) -> None:
         if is_win:
-            si = subprocess.STARTUPINFO()
-            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            si = subprocess.STARTUPINFO()  # type: ignore[attr-defined, unused-ignore]
+            try:
+                si.dwFlags |= subprocess.STARTF_USESHOWWINDOW  # type: ignore[attr-defined, unused-ignore]
+            except:
+                # pylint: disable=no-member
+                si.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW  # type: ignore[attr-defined, unused-ignore]
         else:
             si = None
 
