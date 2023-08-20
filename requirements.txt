@@ -1,2 +1,0 @@
-intersubs @ git+https://github.com/abdnh/intersubs@4292ab0e51e13dd8d255bf32006bdfa54fdfb17f
-pysubs2==1.6.0

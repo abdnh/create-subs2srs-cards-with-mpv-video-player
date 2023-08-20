@@ -1,26 +1,28 @@
-.PHONY: all zip clean mypy pylint fix vendor
-all: zip
+.PHONY: all zip ankiweb vendor fix mypy pylint test clean
 
-PACKAGE_NAME := create_sub2srs_cards_with_mpv
+all: zip ankiweb
 
-zip: $(PACKAGE_NAME).ankiaddon
+zip:
+	python -m ankiscripts.build --type package --qt all --exclude user_files/*.json
 
-$(PACKAGE_NAME).ankiaddon: src/*
-	rm -f $@
-	find -L src/ -type f -name '*.py[co]' -delete -o -type d -name __pycache__ -delete
-	( cd src/; zip -r ../$@ * -x user_files/config.json )
+ankiweb:
+	python -m ankiscripts.build --type ankiweb --qt all --exclude user_files/*.json
 
 vendor:
-	pip install -r requirements.txt -t src/vendor
+	python -m ankiscripts.vendor
+
 fix:
-	python -m black src --exclude="vendor"
-	python -m isort src
+	python -m black src tests --exclude="forms|vendor"
+	python -m isort src tests
 
 mypy:
-	python -m mypy src
+	python -m mypy src tests
 
 pylint:
-	python -m pylint src
+	python -m pylint src tests
+
+test:
+	python -m  pytest --cov=src --cov-config=.coveragerc
 
 clean:
-	rm -f $(PACKAGE_NAME).ankiaddon
+	rm -rf build/

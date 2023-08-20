@@ -1,0 +1,6 @@
+intersubs @ https://github.com/abdnh/intersubs/archive/master.zip
+    # via -r requirements/bundle.in
+mouse==0.7.1
+    # via intersubs
+pysubs2==1.6.1
+    # via -r requirements/bundle.in

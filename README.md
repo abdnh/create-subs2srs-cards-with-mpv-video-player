@@ -6,8 +6,8 @@ Please read the original add-on's description for an introduction. This document
 
 The main additional features are the following:
 
-- A pop-up dictionary to look up subtitle words in any supported dictionary. Provided by [InterSubs](https://github.com/abdnh/intersubs).
-- The ability to add notes by clicking on any subtitle word instead of the usual keyboard shortcut, with the added bonus that you can configure any supported dictionary to automatically fill in certain fields of the note with the word's definitions, example sentences, etc.
+-   A pop-up dictionary to look up subtitle words in any supported dictionary. Provided by [InterSubs](https://github.com/abdnh/intersubs).
+-   The ability to add notes by clicking on any subtitle word instead of the usual keyboard shortcut, with the added bonus that you can configure any supported dictionary to automatically fill in certain fields of the note with the word's definitions, example sentences, etc.
 
 The only dictionary source currently supported is the ZIM files imported via the [ZIM Reader add-on](https://ankiweb.net/shared/info/951350249). If you have ZIM Reader installed with some dictionary files imported, they should show up in this add-on's interface.
 
@@ -34,7 +34,7 @@ Consider supporting me if you like my work:
 
 <a href="https://github.com/sponsors/abdnh"><img height='36' src="https://i.imgur.com/dAgtzcC.png"></a>
 <a href="https://www.patreon.com/abdnh"><img height='36' src="https://i.imgur.com/mZBGpZ1.png"></a>
-<a href='https://ko-fi.com/abdnh'><img height='36' src='https://cdn.ko-fi.com/cdn/kofi1.png?v=3' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+<a href="https://www.buymeacoffee.com/abdnh" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee" style="height: 36px" ></a>
 
 I'm also available for freelance add-on development on Fiverr:
 
