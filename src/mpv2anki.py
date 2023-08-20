@@ -64,7 +64,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "vendor"))
 
 from intersubs.mpv import MPVCommandError
 
-from . import icons_rc, onclick, popup
+from . import onclick, popup
 from .onclick import OnClickDictionary
 from .popup import PopupDictionary
 from .popup.intersubs_handler import InterSubsHandler
@@ -1364,7 +1364,8 @@ class MainWindow(QDialog):
 
         self.audio_ext = QLineEdit(self.settings["audio_ext"])
 
-        icon = QIcon(":/icons/gears.png")
+        icon = QIcon(os.path.join(os.path.dirname(__file__), "icons", "gears.png"))
+
         self.modelFieldsButton.setIcon(icon)
 
         grid = QGridLayout()
@@ -1549,8 +1550,6 @@ class MainWindow(QDialog):
         mainLayout = QVBoxLayout()
         mainLayout.addWidget(scrollArea)
         self.setLayout(mainLayout)
-
-        self.setWindowIcon(QIcon(":/icons/anki.png"))
 
         self.setWindowState(Qt.WindowState.WindowMaximized)
 
