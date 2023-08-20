@@ -31,7 +31,6 @@ Nickolay <kelciour@gmail.com>
 
 from __future__ import annotations
 
-from typing import Any, Type
 
 __version__ = "1.0.0-alpha3"
 
@@ -50,15 +49,12 @@ from anki.hooks import addHook
 from anki.lang import _, langs
 from anki.utils import isLin, isMac, isWin
 
-# import the main window object (mw) from aqt
 from aqt import mw
 
-# import all of the Qt GUI library
 from aqt.qt import *
 from aqt.studydeck import StudyDeck
 
-# import the "get file" tool from utils.py
-from aqt.utils import getFile, getOnlyText, showText, showWarning
+from aqt.utils import getOnlyText, showText, showWarning
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "vendor"))
 
