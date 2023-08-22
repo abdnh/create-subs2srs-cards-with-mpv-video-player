@@ -1,0 +1,88 @@
+{
+    "properties": {
+        "default_preset": {
+            "type": "string"
+        },
+        "presets": {
+            "patternProperties": {
+                ".*": {
+                    "properties": {
+                        "alt_dict_keys": {
+                            "type": "boolean"
+                        },
+                        "audio_ext": {
+                            "type": "string"
+                        },
+                        "av_delay": {
+                            "type": "number"
+                        },
+                        "default_deck": {
+                            "type": "string"
+                        },
+                        "default_model": {
+                            "type": "string"
+                        },
+                        "image_height": {
+                            "type": "integer"
+                        },
+                        "image_width": {
+                            "type": "integer"
+                        },
+                        "mapping": {
+                            "patternProperties": {
+                                ".*": {
+                                    "patternProperties": {
+                                        ".*": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "onclick_dict": {
+                            "type": "string"
+                        },
+                        "onclick_options": {
+                            "type": "object"
+                        },
+                        "pad_end": {
+                            "type": "integer"
+                        },
+                        "pad_start": {
+                            "type": "integer"
+                        },
+                        "popup_dict": {
+                            "type": "string"
+                        },
+                        "popup_options": {
+                            "type": "object"
+                        },
+                        "subs_native_language": {
+                            "type": "string"
+                        },
+                        "subs_native_language_code": {
+                            "type": "string"
+                        },
+                        "subs_target_language": {
+                            "type": "string"
+                        },
+                        "subs_target_language_code": {
+                            "type": "string"
+                        },
+                        "use_mpv": {
+                            "type": "boolean"
+                        },
+                        "video_width": {
+                            "type": "integer"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        }
+    },
+    "type": "object"
+}

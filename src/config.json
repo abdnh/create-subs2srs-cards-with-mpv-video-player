@@ -1,0 +1,28 @@
+{
+    "default_preset": "Default",
+    "presets": {
+        "Default": {
+            "alt_dict_keys": false,
+            "audio_ext": "mp3",
+            "av_delay": 0.0,
+            "default_deck": "Default",
+            "default_model": "mpv2anki",
+            "image_height": 320,
+            "image_width": -2,
+            "mapping": {},
+            "onclick_dict": "",
+            "onclick_options": {},
+            "pad_end": 250,
+            "pad_start": 250,
+            "popup_dict": "",
+            "popup_options": {},
+            "subs_native_language": "",
+            "subs_native_language_code": "",
+            "subs_target_language": "English",
+            "subs_target_language_code": "en",
+            "use_mpv": true,
+            "video_height": 320,
+            "video_width": -2
+        }
+    }
+}

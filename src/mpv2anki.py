@@ -37,7 +37,6 @@ __version__ = "1.0.0-alpha3"
 
 
 import glob
-import json
 import os
 import re
 import subprocess
@@ -474,78 +473,31 @@ class SubtitlesHelper:
 
 class ConfigManager:
     def __init__(self) -> None:
-        self.configPath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "user_files", "config.json"
-        )
         self.onClickDict: Optional[OnClickDictionary] = None
         self.popupDict: Optional[PopupDictionary] = None
-        self._raw_config: Dict[str, Any] = {}
-        self.presets: List[str] = []
-        self.currentPreset = ""
-        self.init()
-
-    def init(self) -> None:
-        self.default = {
-            "default_model": "mpv2anki",
-            "default_deck": "Default",
-            "image_width": -2,
-            "image_height": 320,
-            "video_width": -2,
-            "video_height": 320,
-            "av_delay": 0,
-            "pad_start": 250,
-            "pad_end": 250,
-            "use_mpv": True,
-            "audio_ext": "mp3",
-            "subs_target_language": "English",
-            "subs_target_language_code": "en",
-            "subs_native_language": "",
-            "subs_native_language_code": "",
-            "alt_dict_keys": False,
-            "onclick_dict": "",
-            "popup_dict": "",
-            "onclick_options": {},
-            "popup_options": {},
-        }
-        self.config = self.default.copy()
-        self.currentPreset = "Default"
-
-        if os.path.isfile(self.configPath):
-            with open(self.configPath, encoding="utf-8") as f:
-                self._raw_config = json.load(f)
-        # Test for old schema before preset feature was added
-        if "default_preset" in self._raw_config:
-            presets_set = set(self._raw_config["presets"].keys())
-            presets_set.discard("default_preset")
-            self.presets = list(presets_set)
-        else:
-            self.presets = ["Default"]
-            self._raw_config = {"presets": {"Default": self.config}}
-
-    def load(self, preset: str) -> None:
-        self.config = {}
-        for key, value in self._raw_config["presets"].get(preset, {}).items():
-            self.config[key] = value
-        for key, value in self.default.items():
-            self.config.setdefault(key, value)
-        self.currentPreset = preset
+        self.config = mw.addonManager.getConfig(__name__)
+        self.defaults = mw.addonManager.addonConfigDefaults(
+            mw.addonManager.addonFromModule(__name__)
+        )
 
     def save(self, preset: str) -> None:
-        self._raw_config["presets"][preset] = self.config
-        self._raw_config["default_preset"] = preset
-        with open(self.configPath, "w", encoding="utf-8") as f:
-            json.dump(self._raw_config, f)
+        self.config["default_preset"] = preset
+        mw.addonManager.writeConfig(__name__, self.config)
+
+    def setConfiguredPreset(self, preset: str) -> None:
+        self.config["default_preset"] = preset
+
+    def getConfiguredPreset(self) -> str:
+        return self.config["default_preset"]
+
+    def getPresetNames(self) -> list[str]:
+        return list(self.config["presets"].keys())
 
     def addNewPreset(self, preset: str) -> None:
-        if preset not in self._raw_config["presets"]:
-            self._raw_config["presets"][preset] = self.default
-            self.presets.append(preset)
-
-    def getDefaultPreset(self) -> Dict:
-        return self._raw_config.get("default_preset", "Default")
+        self.config["presets"][preset] = self.defaults["presets"]["Default"]
 
     def getSettings(self) -> Dict[str, Any]:
-        return self.config
+        return self.config["presets"][self.getConfiguredPreset()]
 
     def getFields(self, forDisplay: bool = False) -> List[str]:
         fields = [
@@ -1287,7 +1239,8 @@ class MainWindow(QDialog):
     def __init__(self, configManager: ConfigManager, parent: Optional[QWidget] = None):
         QDialog.__init__(self, parent, Qt.WindowType.Window)
         self.configManager = configManager
-        self.settings = self.configManager.getSettings()
+        self.current_preset = self.configManager.getConfiguredPreset()
+        self.settings: Dict[str, Any] = {}
         self.subsLC = {lang: lc.lower()[:2] for lang, lc in langs}
         self.isURL = False
         self.initUI()
@@ -1370,13 +1323,11 @@ class MainWindow(QDialog):
         self.newPresetButton = QPushButton("New")
         qconnect(self.newPresetButton.clicked, self.onNewPreset)
         self.presetCombo = QComboBox()
-        default_preset = self.configManager.getDefaultPreset()
-        for preset in self.configManager.presets:
+        for preset in self.configManager.getPresetNames():
             self.presetCombo.addItem(preset)
-            if preset == default_preset:
+            if preset == self.current_preset:
                 self.presetCombo.setCurrentText(preset)
         qconnect(self.presetCombo.currentIndexChanged, self.onPresetChanged)
-        self.configManager.load(self.presetCombo.currentText())
         self.settings = self.configManager.getSettings()
         grid = QGridLayout()
         grid.addWidget(QLabel("Preset:"), 0, 0)
@@ -1611,10 +1562,14 @@ class MainWindow(QDialog):
         self.setWindowState(Qt.WindowState.WindowMaximized)
 
     def onPresetChanged(self) -> None:
-        self.configManager.save(self.configManager.currentPreset)
-        self.configManager.load(self.presetCombo.currentText())
+        if not self.presetCombo.currentText():
+            return
+        self.configManager.save(self.current_preset)
+        if self.presetCombo.currentText() == self.current_preset:
+            return
+        self.current_preset = self.presetCombo.currentText()
+        self.configManager.setConfiguredPreset(self.current_preset)
         self.settings = self.configManager.getSettings()
-
         if mw.col.models.by_name(self.settings["default_model"]):
             self.modelButton.setText(self.settings["default_model"])
         else:
@@ -1656,10 +1611,13 @@ class MainWindow(QDialog):
         preset = getOnlyText("Preset name:")
         if not preset:
             return
+
         self.configManager.addNewPreset(preset)
+        self.blockSignals(True)
         self.presetCombo.clear()
-        for preset in self.configManager.presets:
-            self.presetCombo.addItem(preset)
+        for name in self.configManager.getPresetNames():
+            self.presetCombo.addItem(name)
+        self.blockSignals(False)
         self.presetCombo.setCurrentText(preset)
 
     def onClickDictChanged(self, index: int) -> None:
