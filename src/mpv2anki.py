@@ -715,13 +715,11 @@ class AnkiHelper(QObject):
         self.fieldsMap = {}
 
         fieldsMapDefault: Dict[str, Any] = {}
-        for k, v in self.configManager.getFieldsMapping(
-            self.settings["default_model"]
-        ).items():
+        for k, v in self.configManager.getFieldsMapping(self.settings["model"]).items():
             if v not in fieldsMapDefault:
                 fieldsMapDefault[v] = []
             fieldsMapDefault[v].append(k)
-        self.fieldsMap["default_model"] = fieldsMapDefault
+        self.fieldsMap["model"] = fieldsMapDefault
 
     def updateFilePath(self, filePath: str) -> None:
         self.filePath = filePath
@@ -924,7 +922,7 @@ class AnkiHelper(QObject):
     ) -> None:
         noteFields = {k: "" for k in self.configManager.getFields()}
 
-        model = mw.col.models.by_name(self.settings["default_model"])
+        model = mw.col.models.by_name(self.settings["model"])
         mw.col.models.set_current(model)
 
         noteFields["Word"] = word
@@ -1041,7 +1039,7 @@ class AnkiHelper(QObject):
         aid_ff = self.mpvManager.audio_ffmpeg_id
         sid = cast(Optional[int], self.mpvManager.sub_id)
 
-        fieldsMap = self.fieldsMap["default_model"]
+        fieldsMap = self.fieldsMap["model"]
 
         video = None
 
@@ -1139,7 +1137,7 @@ class AnkiHelper(QObject):
             self.mpvManager.command("show-text", "Error: Card already exists.")
             return
 
-        did = mw.col.decks.id(self.settings["default_deck"])
+        did = mw.col.decks.id(self.settings["deck"])
         note.note_type()["did"] = did
 
         if mw.state == "deckBrowser":
@@ -1341,19 +1339,19 @@ class MainWindow(QDialog):
 
         importGroup = QGroupBox("Import Options")
         self.modelButton = QPushButton()
-        if mw.col.models.by_name(self.settings["default_model"]):
-            self.modelButton.setText(self.settings["default_model"])
+        if mw.col.models.by_name(self.settings["model"]):
+            self.modelButton.setText(self.settings["model"])
         else:
             self.modelButton.setText(mw.col.models.current()["name"])
         self.modelButton.setAutoDefault(False)
-        qconnect(self.modelButton.clicked, lambda: self.chooseModel("default_model"))
+        qconnect(self.modelButton.clicked, lambda: self.chooseModel("model"))
         self.modelFieldsButton = QPushButton()
         qconnect(
             self.modelFieldsButton.clicked,
             lambda: self.mapFields(self.modelButton.text()),
         )
-        self.deckButton = QPushButton(self.settings["default_deck"])
-        qconnect(self.deckButton.clicked, lambda: self.chooseDeck("default_deck"))
+        self.deckButton = QPushButton(self.settings["deck"])
+        qconnect(self.deckButton.clicked, lambda: self.chooseDeck("deck"))
         self.useMPV = QCheckBox("Use MPV?")
         self.useMPV.setChecked(self.settings["use_mpv"])
 
@@ -1570,11 +1568,11 @@ class MainWindow(QDialog):
         self.current_preset = self.presetCombo.currentText()
         self.configManager.setConfiguredPreset(self.current_preset)
         self.settings = self.configManager.getSettings()
-        if mw.col.models.by_name(self.settings["default_model"]):
-            self.modelButton.setText(self.settings["default_model"])
+        if mw.col.models.by_name(self.settings["model"]):
+            self.modelButton.setText(self.settings["model"])
         else:
             self.modelButton.setText(mw.col.models.current()["name"])
-        self.deckButton.setText(self.settings["default_deck"])
+        self.deckButton.setText(self.settings["deck"])
         self.useMPV.setChecked(self.settings["use_mpv"])
         self.audio_ext.setText(self.settings["audio_ext"])
         self.imageWidth.setValue(self.settings["image_width"])
@@ -1640,8 +1638,8 @@ class MainWindow(QDialog):
             cblc.setText(self.subsLC[cb.currentText()])
 
     def saveSettings(self) -> None:
-        self.settings["default_model"] = self.modelButton.text()
-        self.settings["default_deck"] = self.deckButton.text()
+        self.settings["model"] = self.modelButton.text()
+        self.settings["deck"] = self.deckButton.text()
         self.settings["use_mpv"] = self.useMPV.isChecked()
         self.settings["image_width"] = self.imageWidth.value()
         self.settings["image_height"] = self.imageHeight.value()
@@ -1665,7 +1663,7 @@ class MainWindow(QDialog):
         self.done(0)
 
     def validate(self) -> Tuple[bool, str]:
-        name = self.settings["default_model"]
+        name = self.settings["model"]
 
         fm = self.configManager.getFieldsMapping(name)
         if not fm:
