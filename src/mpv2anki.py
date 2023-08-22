@@ -537,16 +537,10 @@ class ConfigManager:
         return fields
 
     def updateMapping(self, model: str, data: Dict) -> None:
-        if "mapping" not in self.config:
-            self.config["mapping"] = {}
-        mapping_obj = cast(Dict[str, Any], self.config["mapping"])
-        mapping_obj[model] = data
+        self.getSettings()["mapping"][model] = data
 
     def getFieldsMapping(self, model: str) -> Dict:
-        mapping_obj = cast(Dict[str, Any], self.config["mapping"])
-        if "mapping" not in self.config or model not in mapping_obj:
-            return {}
-        return mapping_obj[model]
+        return self.getSettings()["mapping"].get(model, {})
 
 
 # Fix for ... cannot be converted to PyQt5.QtCore.QObject in this context
