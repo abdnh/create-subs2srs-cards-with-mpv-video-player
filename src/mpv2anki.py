@@ -1194,7 +1194,7 @@ class AnkiHelper(QObject):
             mw.col.decks.select(did)
 
         for p in subprocess_calls:
-            if os.environ.get("ADDON_DEBUG"):
+            if os.environ.get("DEBUG"):
                 p_debug = p[:1] + ["-v"] + p[1:]
                 print(
                     "DEBUG:",
