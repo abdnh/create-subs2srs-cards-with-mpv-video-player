@@ -797,7 +797,7 @@ class AnkiHelper(QObject):
         source: str,
         timePos: float,
         subprocess_calls: List[list[str]],
-        sub: Optional[int] = None,
+        sub: SubId = "no",
         suffix: str = "",
     ) -> str:
         image = "%s_%s%s.jpg" % (
