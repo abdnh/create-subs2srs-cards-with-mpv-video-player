@@ -29,6 +29,7 @@ Usage Notes:
 Nickolay <kelciour@gmail.com>
 """
 
+from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional, Tuple, cast
 
