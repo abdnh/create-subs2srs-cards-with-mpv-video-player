@@ -66,6 +66,8 @@ from .onclick import OnClickDictionary
 from .popup import PopupDictionary
 from .popup.intersubs_handler import InterSubsHandler
 
+SubId = Union[int, Literal["auto", "no"]]
+
 if is_mac and "/usr/local/bin" not in os.environ["PATH"]:
     # https://docs.brew.sh/FAQ#my-mac-apps-dont-find-usrlocalbin-utilities
     os.environ["PATH"] = "/usr/local/bin:" + os.environ["PATH"]
@@ -638,7 +640,7 @@ class MPVMonitor(MPVInterSubs):
 
         self.audio_id = "auto"
         self.audio_ffmpeg_id = 0
-        self.sub_id: Optional[Union[int, Literal["auto"]]] = "auto"
+        self.sub_id: SubId = "auto"
         self.audio_delay = 0.0
 
         self.set_property("include", self.mpvConf)
@@ -688,8 +690,8 @@ class MPVMonitor(MPVInterSubs):
         else:
             self.audio_ffmpeg_id = int(self.audio_id) - 1
 
-    def on_property_sid(self, sub_id: Any = None) -> None:
-        self.sub_id = int(sub_id) if sub_id else None
+    def on_property_sid(self, sub_id: SubId = None) -> None:
+        self.sub_id = sub_id if sub_id is not False else "no"
 
     def on_property_sub_delay(self, val: Any) -> None:
         self.subsManager.sub_delay = round(float(val), 3)
