@@ -917,7 +917,6 @@ class AnkiHelper(QObject):
         noteFields = {k: "" for k in self.configManager.getFields()}
 
         model = mw.col.models.by_name(self.settings["model"])
-        mw.col.models.set_current(model)
 
         noteFields["Word"] = word
         if self.configManager.onClickDict:
@@ -930,7 +929,7 @@ class AnkiHelper(QObject):
         path = os.path.basename(self.filePath)
         noteFields["Path"] = self.filePath
 
-        note = mw.col.newNote(forDeck=False)
+        note = mw.col.new_note(model)
 
         subTranslation = ""
 
@@ -1132,12 +1131,6 @@ class AnkiHelper(QObject):
             self.mpvManager.command("show-text", "Error: Card already exists.")
             return
 
-        did = mw.col.decks.id(self.settings["deck"])
-        note.note_type()["did"] = did
-
-        if mw.state == "deckBrowser":
-            mw.col.decks.select(did)
-
         for p in subprocess_calls:
             if os.environ.get("DEBUG"):
                 p_debug = p[:1] + ["-v"] + p[1:]
@@ -1151,9 +1144,9 @@ class AnkiHelper(QObject):
             self.subsManager.write_subtitles(
                 sub_start, sub_end, sub_pad_start, sub_pad_end, subtitlesPath
             )
-
-        cards = mw.col.addNote(note)
-        if cards == 0:
+        did = mw.col.decks.id(self.settings["deck"])
+        mw.col.add_note(note, did)
+        if len(note.cards()) == 0:
             self.mpvManager.command("show-text", "Error: No cards added.")
         else:
             if is_mac:
