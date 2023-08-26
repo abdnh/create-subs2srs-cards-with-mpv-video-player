@@ -965,10 +965,9 @@ class AnkiHelper(QObject):
                 sub_start = float(self.mpvManager.get_property("sub-start"))
                 sub_end = float(self.mpvManager.get_property("sub-end"))
             except MPVCommandError:
-                # Temporary workaround for NBC
-                if "www.nbc.com" in self.filePath:
-                    sub_start = timePos - 5
-                    sub_end = timePos + 5
+                # Temporary workaround for some sites (e.g. NBC)
+                sub_start = timePos - 5
+                sub_end = timePos + 5
             sub_start += -sub_pad_start + self.subsManager.sub_delay
             sub_end += sub_pad_end + self.subsManager.sub_delay
 
